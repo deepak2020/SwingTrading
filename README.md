@@ -39,6 +39,36 @@ are auto-excluded by the 80%-coverage filter because they listed mid-period.
 
 Output files from this run are in [`outputs/`](outputs/).
 
+## Alternative strategy: support/resistance swing ([`backtest_sr.py`](backtest_sr.py))
+
+A second, independent strategy: buy pullbacks to the 12-week Donchian low
+(bullish weekly close + 40-week SMA uptrend filter required), take profit near
+the 12-week high, stop out 5% below the entry support level, force-exit after
+12 weeks. Positions are per-stock, not ranked/rotated, so turnover is
+structurally low. Run with `CAPITAL=100000 python backtest_sr.py`.
+
+Live results (2015-10-16 → 2026-07-03):
+
+| Metric | @ 50k SEK | @ 100k SEK |
+|--------|-----------|------------|
+| Final equity | 84,560 | 203,978 |
+| CAGR | 5.0% | 6.9% |
+| Max drawdown | **-11.8%** | **-11.2%** |
+| Sharpe | 0.56 | 0.73 |
+| Trades (buys) | 272 | 272 |
+| Take-profit / stop / max-hold | 201 / 45 / 24 | 202 / 44 / 24 |
+| Total fees | 21,138 (61% of gross) | 21,905 (21% of gross) |
+| Avg monthly profit | 269 SEK | **809 SEK** |
+| Benchmark buy & hold CAGR | 16.7% | 16.7% |
+
+Takeaways: very high hit rate (~74% of exits are take-profits) and less than
+half the drawdown of the momentum strategy, but much lower absolute returns —
+it spends a lot of time in cash and its winners are capped at the channel top.
+Both strategy variants underperform simple equal-weight buy & hold (16.7%
+CAGR) on raw return; the S/R strategy's edge is purely risk-adjusted comfort,
+not profit. It does not reach the 2,000 SEK/month target at either capital
+level.
+
 ## Finding a profitable configuration at 100,000 SEK
 
 [`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
