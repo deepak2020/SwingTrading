@@ -39,6 +39,35 @@ are auto-excluded by the 80%-coverage filter because they listed mid-period.
 
 Output files from this run are in [`outputs/`](outputs/).
 
+## Finding a profitable configuration at 100,000 SEK
+
+[`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
+variants of the strategy at 100,000 SEK capital (top-N, momentum lookback,
+rebalance cadence, rank buffer, stop) — full results in
+[`experiments/sweep_results_100k.csv`](experiments/sweep_results_100k.csv).
+
+Key findings (2015–2026):
+
+| Config | Monthly SEK | CAGR | Max DD | Sharpe | Fees |
+|--------|------------|------|--------|--------|------|
+| Original params @ 50k | 292 | 5.3% | -26.7% | 0.40 | 60,138 |
+| Original params @ 100k | 1,553 | 11.0% | -24.6% | 0.70 | 67,357 |
+| **Top-4, mom 12w, weekly, buffer 4, stop 15%** @ 100k | **2,919** | **15.5%** | -28.7% | 0.85 | 48,581 |
+| Top-4, mom 12w, 4-weekly, buffer 4, stop 10% @ 100k | 2,873 | 15.4% | -26.3% | 0.86 | 32,803 |
+
+- **Capital size alone matters:** doubling capital to 100k quintuples monthly
+  profit, because Nordnet's 39 SEK minimum commission stops dominating.
+- **The rank buffer is the biggest single improvement:** holding a position
+  while it stays within top-N+4 (instead of selling the moment it leaves the
+  top N) cuts trades from ~1,540 to ~400–570 and raises returns.
+- **Honest caveat — regime dependence, not a money machine:** in a split-half
+  test, all top variants earned most of their profit in 2015–2020. In
+  2021–2026 the best variant averaged ~1,100 SEK/month, and none sustained
+  2,000+. 39 of 162 combos beat 2,000 SEK/month over the full period, so the
+  result is a robust *family* (small N + buffer + trend filter), but forward
+  returns in a weak regime should be expected to be well below the full-period
+  average. Grid-search winners always carry some look-ahead selection bias.
+
 ## Running it
 
 ```bash
