@@ -103,6 +103,27 @@ the strategy makes only ~6 trades per year. Caveats: with so few trades the
 statistics rest on a small sample and a handful of large winners, and wider
 trails (25%) increasingly just converge toward concentrated buy & hold.
 
+### Daily-timeframe swing trading: a negative result
+
+[`experiments/swing_daily_search.py`](experiments/swing_daily_search.py) runs
+the S/R bounce concept on **daily bars** (20–90 day Donchian channels, holds
+of days instead of months, 48 configs at 100k SEK) — full results in
+[`experiments/swing_daily_results.csv`](experiments/swing_daily_results.csv).
+
+**Zero of 48 configs reach 2,000 SEK/month.** The best earns 325 SEK/month
+while paying 140,676 SEK in fees on 1,806 trades; short 20-day channels churn
+the account to near-zero (-97%). Win rates are fine (53–59%) — the problem is
+per-trade economics: with ~15k SEK positions, the ~78 SEK round-trip minimum
+commission is ~0.5%, while the average daily-swing win over 5–11 days is only
+a few percent. Fee cost per trade rivals edge per trade.
+
+Conclusion: on this universe with Nordnet's fee structure at 100k, higher
+trade frequency destroys profit monotonically. The weekly cadence of the
+other strategies is not a limitation — it is what keeps them alive. Positions
+need to exceed ~26,000 SEK (39 / 0.0015) before the minimum commission stops
+binding; at 6 slots that implies a ~185k+ account before daily-frequency
+trading even becomes worth re-testing.
+
 ## Finding a profitable configuration at 100,000 SEK
 
 [`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
