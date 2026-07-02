@@ -12,8 +12,10 @@ Fully systematic rules:
 """
 
 import os
+import time
+from datetime import datetime, timezone
 
-import yfinance as yf
+import requests
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -50,8 +52,47 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # ---------------------------------------------------------------
 # 2. DOWNLOAD DATA
 # ---------------------------------------------------------------
+# Adjusted daily closes are pulled straight from Yahoo's public chart API with
+# requests. (yfinance's crumb/cookie flow gets rate-limited behind a TLS-
+# re-terminating egress proxy; the plain chart endpoint returns 200 reliably.)
+_YAHOO_HOSTS = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
+
+
+def fetch_adjusted_closes(tickers, start, end):
+    p1 = int(datetime.fromisoformat(start).replace(tzinfo=timezone.utc).timestamp())
+    p2 = int(datetime.fromisoformat(end).replace(tzinfo=timezone.utc).timestamp())
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": "Mozilla/5.0"})
+    series = {}
+    for tkr in tickers:
+        for attempt in range(4):
+            host = _YAHOO_HOSTS[attempt % 2]
+            try:
+                r = sess.get(
+                    f"https://{host}/v8/finance/chart/{tkr}",
+                    params={"period1": p1, "period2": p2, "interval": "1d",
+                            "events": "div,splits"},
+                    timeout=30,
+                )
+                if r.status_code == 200:
+                    res = r.json()["chart"]["result"][0]
+                    idx = pd.to_datetime(res["timestamp"], unit="s").normalize()
+                    ind = res["indicators"]
+                    adj = ind.get("adjclose", [{}])[0].get("adjclose") if "adjclose" in ind else None
+                    close = adj if adj is not None else ind["quote"][0]["close"]
+                    series[tkr] = pd.Series(close, index=idx)
+                    break
+                time.sleep(0.6 * (attempt + 1))
+            except Exception:
+                time.sleep(0.6 * (attempt + 1))
+        else:
+            print(f"  ! could not fetch {tkr} (skipped)")
+        time.sleep(0.15)
+    return pd.DataFrame(series).sort_index()
+
+
 print("Downloading data...")
-raw = yf.download(TICKERS, start=START_DATE, end=END_DATE, progress=False, auto_adjust=True)["Close"]
+raw = fetch_adjusted_closes(TICKERS, START_DATE, END_DATE)
 raw = raw.dropna(axis=1, thresh=int(len(raw)*0.8))  # drop tickers with too much missing data
 print(f"Usable tickers: {list(raw.columns)}")
 

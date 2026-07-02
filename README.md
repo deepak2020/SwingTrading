@@ -17,10 +17,32 @@ A fully systematic weekly momentum swing-trading backtest for the **OMXS30**
 | Capital | 50,000 SEK starting |
 | Period | 2015-01-01 → 2026-06-30 |
 
+## Results (live run, 2015-08-14 → 2026-07-03)
+
+| Metric | Value |
+|--------|-------|
+| Initial capital | 50,000 SEK |
+| Final equity | **88,093 SEK** |
+| Total return | 76.2% |
+| CAGR | 5.3% |
+| Max drawdown | -26.7% |
+| Sharpe (annualized) | 0.40 |
+| Trades | 774 buys / 32 stop-losses / 736 rank exits |
+| Total fees paid | **60,138 SEK** |
+| Avg implied monthly profit | **292 SEK** (target: 2,000 SEK) |
+
+**Verdict: average monthly profit (~292 SEK) is well below the 2,000 SEK target.**
+The strategy is profitable gross, but weekly re-ranking generates ~1,500 trades and
+Nordnet's 39 SEK minimum commission consumes ~61% of gross gains (60,138 SEK of fees
+vs. 38,093 SEK of net profit). 3 of 29 tickers (`EQT.ST`, `ESSITY-B.ST`, `EPI-A.ST`)
+are auto-excluded by the 80%-coverage filter because they listed mid-period.
+
+Output files from this run are in [`outputs/`](outputs/).
+
 ## Running it
 
 ```bash
-pip install yfinance pandas numpy matplotlib
+pip install requests pandas numpy matplotlib
 python backtest.py
 ```
 
@@ -35,8 +57,8 @@ and average implied monthly SEK profit (vs. a 2,000 SEK/month target).
 
 ## Network requirement
 
-`backtest.py` pulls price history from **Yahoo Finance** via `yfinance`. It needs
-outbound HTTPS access to:
+`backtest.py` pulls adjusted daily closes from **Yahoo Finance's public chart API**
+using `requests`. It needs outbound HTTPS access to:
 
 - `query1.finance.yahoo.com`, `query2.finance.yahoo.com`
 - `fc.yahoo.com`, `finance.yahoo.com`
