@@ -124,6 +124,34 @@ need to exceed ~26,000 SEK (39 / 0.0015) before the minimum commission stops
 binding; at 6 slots that implies a ~185k+ account before daily-frequency
 trading even becomes worth re-testing.
 
+### Should the parameters be fine-tuned? (walk-forward test)
+
+[`experiments/walk_forward.py`](experiments/walk_forward.py) answers this
+honestly: every January from 2019, re-optimize all momentum parameters on the
+trailing 4 years only, then trade the next year blind, chaining equity
+(yearly detail in
+[`experiments/walk_forward_results.csv`](experiments/walk_forward_results.csv)).
+
+Result 2019–2026 from 100k SEK:
+
+| Approach | Final | CAGR | ~SEK/month |
+|----------|-------|------|-----------|
+| Re-tuned yearly (pick trailing best by return) | 201,131 | 9.8% | 1,124 |
+| Re-tuned yearly (pick trailing best by Sharpe) | 217,003 | 10.9% | 1,300 |
+| Fixed top-4 / mom-12 / buffer-4 / stop-15 | 237,081 | 12.2% | 1,523 |
+| Fixed original params (never tuned at all) | 232,704 | 11.9% | 1,474 |
+
+**Yearly re-tuning lost to never tuning.** The adaptive picker chased the
+previous regime — it entered 2023 and 2026 with aggressive parameters fitted
+to the prior rally and gave back double-digit returns in both (e.g. 2023:
+tuned -4% vs fixed +11–17%). Even the completely untuned original parameters
+beat both adaptive selectors. (The fixed sweep-winner row is slightly
+flattered here since it was chosen using this same period; the untuned
+original row is the clean comparison — and it still wins.)
+
+Practical conclusion: pick structurally robust parameters (small N, a rank
+buffer, a trend filter, a wide stop), then leave them alone.
+
 ## Finding a profitable configuration at 100,000 SEK
 
 [`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
