@@ -69,6 +69,31 @@ CAGR) on raw return; the S/R strategy's edge is purely risk-adjusted comfort,
 not profit. It does not reach the 2,000 SEK/month target at either capital
 level.
 
+### Hybrid: S/R entries + trailing-stop exits
+
+[`experiments/sr_trailing_search.py`](experiments/sr_trailing_search.py) keeps
+the S/R entry logic untouched but replaces the resistance take-profit with a
+trailing stop (exit when close falls X% below the highest close since entry;
+no profit cap, no max hold). Full sweep in
+[`experiments/sr_trailing_results.csv`](experiments/sr_trailing_results.csv).
+At 100,000 SEK:
+
+| Exit rule | Monthly SEK | CAGR | Max DD | Sharpe | Buys | Fees |
+|-----------|------------|------|--------|--------|------|------|
+| TP at resistance (original) | 789 | 6.8% | -11.2% | 0.72 | 272 | 21,876 |
+| **Trailing 15%** | **2,671** | 14.9% | -23.1% | **0.96** | 64 | 6,797 |
+| Trailing 20% | 2,961 | 15.8% | -25.9% | 0.96 | 43 | 4,289 |
+| Trailing 25% | 3,381 | 16.9% | -29.7% | 0.90 | 36 | 3,392 |
+
+Uncapping the winners is worth 3–4x the monthly profit. **The 15% trail is the
+most robust configuration found in this repo:** in a split-half test it earned
+~1,800 SEK/month in 2015–2020 *and* ~1,900 SEK/month in 2021–2026 — the only
+strategy variant that did not decay in the recent half (the momentum variants
+dropped to ~550–1,100). Fees become negligible (~6.8k over a decade) because
+the strategy makes only ~6 trades per year. Caveats: with so few trades the
+statistics rest on a small sample and a handful of large winners, and wider
+trails (25%) increasingly just converge toward concentrated buy & hold.
+
 ## Finding a profitable configuration at 100,000 SEK
 
 [`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
