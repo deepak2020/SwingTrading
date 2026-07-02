@@ -152,6 +152,32 @@ original row is the clean comparison — and it still wins.)
 Practical conclusion: pick structurally robust parameters (small N, a rank
 buffer, a trend filter, a wide stop), then leave them alone.
 
+### Daily-checked and trailing stops
+
+[`experiments/daily_stop_search.py`](experiments/daily_stop_search.py) keeps the
+weekly ranking/buffer but checks the stop every DAY (not just Fridays) and tests
+a trailing stop that ratchets up from each position's peak. Results in
+[`experiments/daily_stop_results.csv`](experiments/daily_stop_results.csv), 100k SEK:
+
+| Config | Monthly | CAGR | Sharpe | Max DD | Worst trade | Stop-out share |
+|--------|---------|------|--------|--------|-------------|----------------|
+| Weekly fixed 15% (champion) | 2,922 | 15.5% | 0.85 | -28.7% | -24% | 3% |
+| Daily fixed 15% | 3,037 | 15.9% | 0.87 | -27.8% | -21% | 3% |
+| Daily trail 15% | 2,901 | 15.5% | 0.87 | -28.3% | -21% | 12% |
+| **Daily trail 20%** | **3,102** | **16.1%** | **0.89** | **-26.7%** | -21% | 4% |
+| Daily trail 25% | 2,647 | 14.7% | 0.82 | -27.8% | -23% | 2% |
+| Daily trail 30% | 2,825 | 15.3% | 0.84 | -28.7% | -24% | 0% |
+
+Checking the stop daily instead of weekly is a small free win (worst trade
+-24%→-21%, slightly better returns, no extra turnover). A ~20% daily trailing
+stop was the best config: best Sharpe, mildest drawdown, and it rarely fires so
+it doesn't churn. Tighter trails (15%) whipsaw (12% stop-out share, lower
+return). Caveats: the 20/25/30 ordering is partly small-sample noise (read as
+"~20% trail is a good safe choice"), and the worst trade only reaches -21% not
+-15% because stops are checked on daily closes — a gap-down still slips through;
+truly capping near -15% needs an intraday broker stop order (more false
+triggers). The stop remains a backstop, not the return engine.
+
 ### Shorter holds for "classic" 2-3 week swing cadence
 
 [`experiments/hold_period_search.py`](experiments/hold_period_search.py) tests
