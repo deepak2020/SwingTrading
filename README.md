@@ -152,6 +152,44 @@ original row is the clean comparison — and it still wins.)
 Practical conclusion: pick structurally robust parameters (small N, a rank
 buffer, a trend filter, a wide stop), then leave them alone.
 
+## Options: short iron condor with dynamic leg adjustment
+
+[`experiments/iron_condor_sim.py`](experiments/iron_condor_sim.py) simulates a
+45-DTE short iron condor (~16-delta shorts, 100-pt wings) on 16 years of real
+OMXS30 index paths, comparing three management styles. Per-trade log in
+[`experiments/iron_condor_trades.csv`](experiments/iron_condor_trades.csv).
+
+**Modelling note:** index paths are real; option prices are Black-Scholes on a
+realized-vol proxy (trailing 20d RV + 3-pt vol risk premium). The path-dependent
+logic (tested/untested, roll credit, whipsaws) is faithful — only absolute
+premium levels carry a vol assumption, so compare the arms, not the SEK totals.
+
+| Arm | Trades | Win % | Avg/trade | Max loss | Total P&L |
+|-----|--------|-------|-----------|----------|-----------|
+| Static (hold to expiry) | 128 | 85% | +686 | -8,552 | +87,776 |
+| Mechanical (50% profit take, exit 21 DTE) | 299 | 76% | +259 | -7,143 | +77,393 |
+| Dynamic (roll untested side, 50% trigger / 80% credit) | 300 | 68% | +1 | -5,172 | +404 |
+
+Rolling the untested side (buy back the decayed spread, re-sell it closer to
+spot to finance the tested side) **cut max loss to the lowest of the three but
+destroyed the edge.** Splitting the dynamic trades: those that never rolled won
+100% (+832 avg); those that rolled won only 37% (-819 avg) — the classic
+whipsaw, where pulling the untested spread toward a moving market means a
+reversal hits the side you just moved into danger.
+
+The chosen rule (roll early at 50% of the distance, aggressively to 80% of
+tested premium) is near the worst cell of the roll-parameter grid; waiting to
+70% and rolling only to 60% credit raises the dynamic total from +404 to
++38,300 — but **even the best dynamic variant still loses to simply managing
+winners** (+77,393). Conclusion: rolling the untested side is a tail-shape tool
+(lower max loss, lower win rate, ~zero net edge after whipsaws and
+commissions), not an edge-adder — at least as a mechanical rule. Caveats: this
+isolates one tool (real practitioners also roll in time, adjust the tested
+side, and only sell condors when IV is elevated — the sim sells always-on
+including today's low 15% vol), and it tests the rule, not skilled discretion.
+Mechanical management (take profit at 50%, exit 21 DTE) was the risk-adjusted
+sweet spot: ~88% of static's profit with materially smaller tails.
+
 ## Finding a profitable configuration at 100,000 SEK
 
 [`experiments/strategy_search.py`](experiments/strategy_search.py) sweeps 162
