@@ -69,6 +69,15 @@ CAGR) on raw return; the S/R strategy's edge is purely risk-adjusted comfort,
 not profit. It does not reach the 2,000 SEK/month target at either capital
 level.
 
+The benchmark's full "trade log" is in
+[`outputs/buyhold_positions.csv`](outputs/buyhold_positions.csv): 26 buys on
+2015-10-16 and nothing after. 100k → 522.5k SEK with 1 loser out of 26; the
+top 5 positions (EVO +1369%, ADDT-B +1353%, SAAB +968%, LIFCO +883%, ABB
++638%) make up 42% of the final value — the compounders no exit rule was
+allowed to cut. Note the benchmark carries survivorship bias: the universe is
+today's OMXS30 members, so its 16.7% CAGR is an optimistic figure (this bias
+affects all backtests in this repo, buy & hold most of all).
+
 ### Hybrid: S/R entries + trailing-stop exits
 
 [`experiments/sr_trailing_search.py`](experiments/sr_trailing_search.py) keeps
