@@ -152,6 +152,32 @@ original row is the clean comparison — and it still wins.)
 Practical conclusion: pick structurally robust parameters (small N, a rank
 buffer, a trend filter, a wide stop), then leave them alone.
 
+### Shorter holds for "classic" 2-3 week swing cadence
+
+[`experiments/hold_period_search.py`](experiments/hold_period_search.py) tests
+whether the champion's ~6-week hold can be cut to 2-3 weeks (faster momentum
+lookback, smaller buffer, optional max-hold cap) at 100k SEK — full results in
+[`experiments/hold_period_results.csv`](experiments/hold_period_results.csv).
+
+| Config | Mean hold | Trades/yr | Fees | Monthly | CAGR | Sharpe | Max DD |
+|--------|-----------|-----------|------|---------|------|--------|--------|
+| Champion (mom12, buf4) | 7.8w | 26 | 48,581 | 2,919 | 15.5% | 0.85 | -28.7% |
+| mom8, buf2 | 4.5w | 46 | 61,277 | 1,393 | 10.0% | 0.60 | -24.8% |
+| mom6, buf0 | 2.8w | 73 | 81,532 | 1,217 | 9.1% | 0.58 | -24.1% |
+| mom3, buf0 | 2.0w | 101 | 87,293 | 262 | 2.7% | 0.24 | -28.6% |
+| mom4, buf0, cap 2w | 1.6w | 132 | 113,269 | -114 | -1.5% | 0.00 | -47.1% |
+
+Shortening holds to ~3 weeks (mom6/buf0) nearly doubles fees (48k→82k over the
+decade) and roughly halves monthly profit (2,919→1,217) — the extra turnover
+cost almost exactly equals the lost profit. Below ~3 weeks it degrades further
+on two fronts: more fees *and* signal decay (momentum is a 3-12 month effect;
+a 3-4 week lookback measures noise, drifting toward short-term reversal), so
+mom3/mom4 lose on return *and* drawdown (-40%/-47%). The 2-week forced-exit
+variant loses money outright. Best genuine 2-3 week config: mom6/buf0
+(~1,217 SEK/mo, milder -24% drawdown). Reasonable middle ground: mom8/buf2
+(~4.5w, 1,393 SEK/mo, best shortened-set Sharpe). But 6-week holds are already
+within the classic swing definition and remain the risk-adjusted champion.
+
 ## Options: short iron condor with dynamic leg adjustment
 
 [`experiments/iron_condor_sim.py`](experiments/iron_condor_sim.py) simulates a
