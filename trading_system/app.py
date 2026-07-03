@@ -33,6 +33,11 @@ EQUITY_HISTORY_FILE = os.path.join(config.DATA_DIR, "equity_history.json")
 # credentials are encrypted in transit.
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 
+# Log the storage mode at import (shows in Render logs under gunicorn too).
+print(f"[dashboard] storage mode: {engine.storage_mode()}"
+      f"{'  (edits persist)' if engine.storage_mode() == 'postgres' else '  (EPHEMERAL — set DATABASE_URL to persist edits)'}",
+      flush=True)
+
 
 @app.before_request
 def _require_auth():
@@ -50,7 +55,9 @@ def _require_auth():
 def healthz():
     # Cheap liveness endpoint for an external uptime pinger to hit every ~10 min,
     # keeping a free-tier host from sleeping. Deliberately does NOT fetch prices.
-    return {"status": "ok"}, 200
+    # 'storage' tells you whether edits persist: "postgres" = safe across
+    # restarts; "file" = ephemeral on free hosts (set DATABASE_URL to fix).
+    return {"status": "ok", "storage": engine.storage_mode()}, 200
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
 _CACHE = {"prices": None, "ts": 0.0}

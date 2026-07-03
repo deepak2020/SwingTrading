@@ -35,7 +35,15 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 _DEFAULT_STATE = lambda: {"cash": config.CAPITAL, "positions": {}}
 
 
+def storage_mode():
+    """'postgres' when a DATABASE_URL is configured, else 'file' (ephemeral on
+    free hosts). Surfaced at /healthz so you can confirm persistence is active."""
+    return "postgres" if DATABASE_URL else "file"
+
+
 def _db():
+    """A fresh Postgres connection with the state table ensured. Callers must
+    close it (connections are not pooled here)."""
     import psycopg2
     conn = psycopg2.connect(DATABASE_URL)
     with conn, conn.cursor() as cur:
@@ -45,9 +53,13 @@ def _db():
 
 def load_state():
     if DATABASE_URL:
-        with _db() as conn, conn.cursor() as cur:
-            cur.execute("SELECT data FROM app_state WHERE id = 1")
-            row = cur.fetchone()
+        conn = _db()
+        try:
+            with conn, conn.cursor() as cur:
+                cur.execute("SELECT data FROM app_state WHERE id = 1")
+                row = cur.fetchone()
+        finally:
+            conn.close()
         return json.loads(row[0]) if row else _DEFAULT_STATE()
     if os.path.exists(config.STATE_FILE):
         with open(config.STATE_FILE) as f:
@@ -58,9 +70,13 @@ def load_state():
 def save_state(state):
     payload = json.dumps(state, default=str)
     if DATABASE_URL:
-        with _db() as conn, conn.cursor() as cur:
-            cur.execute("INSERT INTO app_state (id, data) VALUES (1, %s) "
-                        "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data", [payload])
+        conn = _db()
+        try:
+            with conn, conn.cursor() as cur:
+                cur.execute("INSERT INTO app_state (id, data) VALUES (1, %s) "
+                            "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data", [payload])
+        finally:
+            conn.close()
         return
     with open(config.STATE_FILE, "w") as f:
         f.write(json.dumps(state, indent=2, default=str))
