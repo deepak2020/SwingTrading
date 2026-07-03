@@ -284,7 +284,25 @@ def api_data():
     return jsonify(build_snapshot(force=request.args.get("refresh") == "1"))
 
 
+def _lan_ip():
+    """Best-effort LAN IP so a phone on the same Wi-Fi knows what to browse to."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))   # no packets sent; just picks the outbound iface
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    # Default to localhost-only. Set HOST=0.0.0.0 to reach it from your phone on
+    # the same Wi-Fi (read-only dashboard, but don't expose it to the open internet).
+    host = os.environ.get("HOST", "127.0.0.1")
     print(f"Portfolio dashboard on http://127.0.0.1:{port}  (Ctrl-C to stop)")
-    app.run(host="127.0.0.1", port=port, debug=False)
+    if host == "0.0.0.0":
+        print(f"  On your phone (same Wi-Fi):  http://{_lan_ip()}:{port}")
+    app.run(host=host, port=port, debug=False)
