@@ -17,7 +17,7 @@ import time
 from datetime import date
 
 import pandas as pd
-from flask import Flask, jsonify, redirect, render_template_string, request
+from flask import Flask, Response, jsonify, redirect, render_template_string, request
 
 import config
 import engine
@@ -25,8 +25,23 @@ import strategy
 
 app = Flask(__name__)
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-EQUITY_HISTORY_FILE = os.path.join(_HERE, "equity_history.json")
+EQUITY_HISTORY_FILE = os.path.join(config.DATA_DIR, "equity_history.json")
+
+# ---- optional password gate (required when hosting online) ----
+# Set DASHBOARD_PASSWORD in the host's env to require a login. If unset (local
+# use) the dashboard is open. Served over HTTPS by the host, so basic-auth
+# credentials are encrypted in transit.
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
+
+
+@app.before_request
+def _require_auth():
+    if not DASHBOARD_PASSWORD:
+        return  # no password configured -> open (local dev)
+    auth = request.authorization
+    if not auth or auth.password != DASHBOARD_PASSWORD:
+        return Response("Login required", 401,
+                        {"WWW-Authenticate": 'Basic realm="Portfolio"'})
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
 _CACHE = {"prices": None, "ts": 0.0}

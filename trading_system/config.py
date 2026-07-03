@@ -31,9 +31,14 @@ TICKERS = [
 ]
 
 # ---- Paths ----
+# DATA_DIR holds the mutable state (positions, cash, logs). Defaults to this
+# folder for local use; set STATE_DIR to a persistent-disk path when hosting
+# online (e.g. STATE_DIR=/var/data on Render) so edits survive restarts.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(_HERE, "state.json")
-LOG_FILE = os.path.join(_HERE, "trades.log")
+DATA_DIR = os.environ.get("STATE_DIR", _HERE)
+os.makedirs(DATA_DIR, exist_ok=True)
+STATE_FILE = os.path.join(DATA_DIR, "state.json")
+LOG_FILE = os.path.join(DATA_DIR, "trades.log")
 
 # ---- Nordnet API (fill via environment; never hard-code secrets) ----
 # Access must be enabled for your account — verify at nordnet.se and against the

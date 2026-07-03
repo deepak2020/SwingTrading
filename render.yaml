@@ -1,0 +1,33 @@
+# Render deployment for the OMXS30 portfolio dashboard.
+# Deploy: push to GitHub, then on render.com -> New -> Blueprint -> pick this repo.
+# Render auto-detects this file. After the first deploy, open the service and set
+# DASHBOARD_PASSWORD (Environment tab) to your chosen password.
+#
+# Notes:
+#  - Free plan sleeps after ~15 min idle; the first request then takes ~30s to wake.
+#  - The free plan has an ephemeral filesystem, so edited holdings reset on each
+#    redeploy. To make edits persist, upgrade the plan, add a Disk mounted at
+#    /var/data, and set STATE_DIR=/var/data (see the commented block below).
+#  - 1 worker keeps the in-process price cache shared; the 120s timeout covers the
+#    first Yahoo Finance fetch of the whole universe.
+services:
+  - type: web
+    name: swingtrading-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r trading_system/requirements.txt
+    startCommand: gunicorn --chdir trading_system --bind 0.0.0.0:$PORT --workers 1 --timeout 120 app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: DASHBOARD_PASSWORD
+        sync: false          # set this yourself in the Render dashboard
+      - key: CAPITAL
+        value: "100000"
+    # --- persistence (paid plans only) ---
+    # Uncomment to keep edited holdings across restarts, then also add an env var
+    # STATE_DIR=/var/data above.
+    # disk:
+    #   name: data
+    #   mountPath: /var/data
+    #   sizeGB: 1
