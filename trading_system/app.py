@@ -97,6 +97,46 @@ def build_snapshot(force=False):
     for p in positions:
         p["weight"] = round(p["value"] / invested * 100, 1) if invested else 0.0
 
+    # --- recommended actions: cross-reference holdings with this week's signal ---
+    target = sig["target"]                      # top-N names to own
+    hold_ok = sig["hold_ok"]                    # top-(N+buffer) names ok to keep
+    rank_of = {t: i + 1 for i, (t, _, _) in enumerate(sig["ranking"])}
+    buf = config.TOP_N + config.RANK_BUFFER
+
+    sell, hold = [], []
+    for p in positions:
+        t, now, stop = p["ticker"], p["now"], p["stop_price"]
+        if stop and now <= stop:
+            p["action"] = "SELL"
+            p["action_reason"] = f"{config.TRAIL_STOP_PCT:.0%} trailing stop hit"
+        elif t not in hold_ok:
+            p["action"] = "SELL"
+            p["action_reason"] = (f"fell to rank {rank_of[t]} (outside top {buf})"
+                                  if t in rank_of else "lost its uptrend (below 20-week SMA)")
+        else:
+            p["action"] = "HOLD"
+            p["action_reason"] = f"rank {rank_of.get(t, '-')} — inside top {buf}"
+        (sell if p["action"] == "SELL" else hold).append(
+            {"ticker": t, "name": p["name"], "reason": p["action_reason"]})
+
+    slots = max(0, config.TOP_N - len(hold))    # open slots after keeping the holds
+    buy = []
+    for t, m, _ in sig["ranking"]:
+        if len(buy) >= slots:
+            break
+        if t in target and t not in held:
+            buy.append({"ticker": t, "name": strategy.NAMES.get(t, t),
+                        "mom": round(m * 100, 1), "rank": rank_of[t]})
+    actions = {"sell": sell, "buy": buy, "hold": hold}
+
+    signal_list = []
+    for i, (t, m, _) in enumerate(sig["ranking"][:buf]):
+        core = i < config.TOP_N
+        act = ("OWN — core" if t in held else "BUY now") if core else \
+              ("keep (buffer)" if t in held else "watch")
+        signal_list.append({"rank": i + 1, "ticker": t, "name": strategy.NAMES.get(t, t),
+                            "mom": round(m * 100, 1), "action": act, "held": t in held})
+
     account_value = engine.portfolio_value(state, px)
     hist = _log_equity(account_value)
 
@@ -115,13 +155,8 @@ def build_snapshot(force=False):
         "top_n": config.TOP_N,
         "trail_pct": int(config.TRAIL_STOP_PCT * 100),
         "positions": positions,
-        "signal": [
-            {"rank": i + 1, "ticker": t, "name": strategy.NAMES.get(t, t),
-             "mom": round(m * 100, 1),
-             "action": "BUY / core hold" if i < config.TOP_N else "hold if owned",
-             "held": t in held}
-            for i, (t, m, _) in enumerate(sig["ranking"][:config.TOP_N + config.RANK_BUFFER])
-        ],
+        "actions": actions,
+        "signal": signal_list,
         "equity_history": hist,
     }
 
@@ -193,6 +228,15 @@ PAGE = r"""
   .frow { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
   .frow form { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; }
   .hint { color:var(--muted); font-size:12px; margin:2px 0 14px; }
+  .actions { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .act { display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); }
+  .act:last-child { border-bottom:none; }
+  .pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px;
+    letter-spacing:.03em; white-space:nowrap; }
+  .pill.sell { background:rgba(239,68,68,.16); color:var(--neg); }
+  .pill.buy { background:rgba(59,130,246,.16); color:var(--accent); }
+  .pill.hold { background:var(--card2); color:var(--muted); }
+  .summary { color:var(--muted); font-size:13px; margin:2px 0 12px; }
 </style>
 </head>
 <body><div class="wrap">
@@ -219,6 +263,31 @@ PAGE = r"""
       <div class="val">{{d.exposure_pct}}% <span class="sub">{{d.n_positions}}/{{d.top_n}}</span></div></div>
   </div>
 
+  <h2>Recommended actions <span class="sub">week ending {{d.as_of}}</span></h2>
+  {% if d.actions.sell or d.actions.buy or d.actions.hold %}
+  <div class="summary">
+    Sell {{d.actions.sell|length}} · Buy {{d.actions.buy|length}} · Hold {{d.actions.hold|length}}
+    {% if not d.actions.sell and not d.actions.buy %}— nothing to do, hold everything.{% endif %}
+  </div>
+  <div class="actions">
+    {% for a in d.actions.sell %}
+    <div class="act"><span class="pill sell">SELL</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}}</span></div>
+    {% endfor %}
+    {% for a in d.actions.buy %}
+    <div class="act"><span class="pill buy">BUY</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · +{{a.mom}}% 12w · fills a slot</span></div>
+    {% endfor %}
+    {% for a in d.actions.hold %}
+    <div class="act"><span class="pill hold">HOLD</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}}</span></div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">All cash — buy the <strong>BUY now</strong> names in this week's signal below,
+    or tap <strong>✎ Edit</strong> to record holdings you already own.</div>
+  {% endif %}
+
   {% if d.equity_history|length > 1 %}
   <h2>Equity</h2>
   <div class="card">{{ chart|safe }}</div>
@@ -232,7 +301,8 @@ PAGE = r"""
 
   {% for p in d.positions %}
   <div class="editcard">
-    <div class="ename">{{p.name}} <span class="sub">{{p.ticker}}</span>
+    <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
+      {{p.name}} <span class="sub">{{p.ticker}}</span>
       · now {{p.now}} · P/L <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
     <div class="frow">
       <form method="post" action="/position/update">
@@ -278,7 +348,8 @@ PAGE = r"""
     </tr></thead><tbody>
     {% for p in d.positions %}
     <tr>
-      <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span></td>
+      <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
+        <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
       <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td><td>{{p.peak}}</td>
       <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
         <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
