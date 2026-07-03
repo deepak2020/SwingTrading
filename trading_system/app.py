@@ -36,12 +36,21 @@ DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
 
 @app.before_request
 def _require_auth():
+    if request.path == "/healthz":
+        return  # keep-awake ping: no auth, no heavy work
     if not DASHBOARD_PASSWORD:
         return  # no password configured -> open (local dev)
     auth = request.authorization
     if not auth or auth.password != DASHBOARD_PASSWORD:
         return Response("Login required", 401,
                         {"WWW-Authenticate": 'Basic realm="Portfolio"'})
+
+
+@app.route("/healthz")
+def healthz():
+    # Cheap liveness endpoint for an external uptime pinger to hit every ~10 min,
+    # keeping a free-tier host from sleeping. Deliberately does NOT fetch prices.
+    return {"status": "ok"}, 200
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
 _CACHE = {"prices": None, "ts": 0.0}
