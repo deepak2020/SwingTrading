@@ -29,16 +29,41 @@ class Order:
         return self.shares * self.price
 
 
+# Storage: a Postgres DATABASE_URL (e.g. a free Neon/Supabase database) makes the
+# state survive restarts when hosted; without it we fall back to a local JSON file.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+_DEFAULT_STATE = lambda: {"cash": config.CAPITAL, "positions": {}}
+
+
+def _db():
+    import psycopg2
+    conn = psycopg2.connect(DATABASE_URL)
+    with conn, conn.cursor() as cur:
+        cur.execute("CREATE TABLE IF NOT EXISTS app_state (id INT PRIMARY KEY, data TEXT NOT NULL)")
+    return conn
+
+
 def load_state():
+    if DATABASE_URL:
+        with _db() as conn, conn.cursor() as cur:
+            cur.execute("SELECT data FROM app_state WHERE id = 1")
+            row = cur.fetchone()
+        return json.loads(row[0]) if row else _DEFAULT_STATE()
     if os.path.exists(config.STATE_FILE):
         with open(config.STATE_FILE) as f:
             return json.load(f)
-    return {"cash": config.CAPITAL, "positions": {}}
+    return _DEFAULT_STATE()
 
 
 def save_state(state):
+    payload = json.dumps(state, default=str)
+    if DATABASE_URL:
+        with _db() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO app_state (id, data) VALUES (1, %s) "
+                        "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data", [payload])
+        return
     with open(config.STATE_FILE, "w") as f:
-        json.dump(state, f, indent=2, default=str)
+        f.write(json.dumps(state, indent=2, default=str))
 
 
 def portfolio_value(state, px):

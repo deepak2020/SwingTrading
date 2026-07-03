@@ -22,6 +22,9 @@ services:
         value: "3.12.6"
       - key: DASHBOARD_PASSWORD
         sync: false          # set this yourself in the Render dashboard
+      - key: DATABASE_URL
+        sync: false          # paste a free Neon/Supabase Postgres URL here so
+                             # edited holdings persist across restarts/redeploys
       - key: CAPITAL
         value: "100000"
     # --- persistence (paid plans only) ---
