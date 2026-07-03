@@ -17,7 +17,7 @@ import time
 from datetime import date
 
 import pandas as pd
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, redirect, render_template_string, request
 
 import config
 import engine
@@ -178,13 +178,32 @@ PAGE = r"""
   svg { width:100%; height:auto; display:block; }
   .foot { color:var(--muted); font-size:12px; margin-top:26px; }
   code { background:var(--card2); padding:1px 6px; border-radius:5px; font-size:13px; }
+  a.btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  input, select { background:var(--card2); border:1px solid var(--line); color:var(--text);
+    padding:8px 10px; border-radius:8px; font-size:15px; min-width:0; }
+  input { width:100px; }
+  label { display:inline-flex; flex-direction:column; gap:4px; font-size:11px;
+    text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  button { background:var(--accent); color:#fff; border:none; padding:9px 16px; border-radius:8px;
+    font-weight:600; cursor:pointer; font-size:14px; }
+  button.danger { background:transparent; color:var(--neg); border:1px solid var(--neg); }
+  .editcard { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px; }
+  .editcard .ename { font-weight:640; margin-bottom:10px; }
+  .frow { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
+  .frow form { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; }
+  .hint { color:var(--muted); font-size:12px; margin:2px 0 14px; }
 </style>
 </head>
 <body><div class="wrap">
   <header>
     <h1>Portfolio</h1>
     <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · week ending {{d.as_of}}</span>
-    <span class="refresh"><a class="btn" href="?refresh=1">↻ Refresh prices</a></span>
+    <span class="refresh">
+      {% if edit %}<a class="btn" href="/">✓ Done</a>
+      {% else %}<a class="btn ghost" href="?edit=1">✎ Edit</a>
+      <a class="btn" href="?refresh=1">↻ Refresh</a>{% endif %}
+    </span>
   </header>
 
   <div class="cards">
@@ -206,7 +225,52 @@ PAGE = r"""
   {% endif %}
 
   <h2>Positions</h2>
-  {% if d.positions %}
+  {% if edit %}
+  <p class="hint">Enter your actual fills. Adding a position spends cash (shares × price + fee);
+    “Save” corrects the recorded shares/price without moving cash; “Sell” books proceeds back to cash.
+    Use “Set cash” to reconcile to your broker’s real balance.</p>
+
+  {% for p in d.positions %}
+  <div class="editcard">
+    <div class="ename">{{p.name}} <span class="sub">{{p.ticker}}</span>
+      · now {{p.now}} · P/L <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
+    <div class="frow">
+      <form method="post" action="/position/update">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Shares<input type="number" name="shares" value="{{p.shares}}" min="1" step="1" inputmode="numeric"></label>
+        <label>Entry price<input type="number" name="price" value="{{p.entry}}" min="0" step="0.01" inputmode="decimal"></label>
+        <button>Save</button>
+      </form>
+      <form method="post" action="/position/sell" onsubmit="return confirm('Sell all {{p.shares}} {{p.ticker}}?');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
+        <button class="danger">Sell</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="editcard">
+    <div class="ename">＋ Add position</div>
+    <form class="frow" method="post" action="/position/add">
+      <label>Stock<select name="ticker">
+        {% for t, n in universe %}<option value="{{t}}">{{n}} ({{t}})</option>{% endfor %}
+      </select></label>
+      <label>Shares<input type="number" name="shares" min="1" step="1" inputmode="numeric" required></label>
+      <label>Price<input type="number" name="price" min="0" step="0.01" inputmode="decimal" required></label>
+      <button>Add</button>
+    </form>
+  </div>
+
+  <div class="editcard">
+    <div class="ename">Cash</div>
+    <form class="frow" method="post" action="/cash">
+      <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.cash) }}" step="0.01" inputmode="decimal"></label>
+      <button>Set cash</button>
+    </form>
+  </div>
+
+  {% elif d.positions %}
   <div class="tablescroll"><table>
     <thead><tr>
       <th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Peak</th>
@@ -227,8 +291,9 @@ PAGE = r"""
     {% endfor %}
     </tbody></table></div>
   {% else %}
-  <div class="empty">No open positions — the paper book is all cash.<br>
-    Run <code>python run.py rebalance</code> to open the top-{{d.top_n}} from this week's signal.</div>
+  <div class="empty">No open positions — the book is all cash.<br>
+    Tap <strong>✎ Edit</strong> to add your actual holdings, or run
+    <code>python run.py rebalance</code> to open the top-{{d.top_n}} from this week's signal.</div>
   {% endif %}
 
   <h2>This week's signal</h2>
@@ -276,12 +341,76 @@ def _sparkline(hist, w=920, h=120, pad=8):
 def index():
     d = build_snapshot(force=request.args.get("refresh") == "1")
     chart = _sparkline(d["equity_history"]) if len(d["equity_history"]) > 1 else ""
-    return render_template_string(PAGE, d=d, chart=chart)
+    universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.TICKERS),
+                      key=lambda x: x[1])
+    return render_template_string(PAGE, d=d, chart=chart,
+                                  edit=request.args.get("edit") == "1", universe=universe)
 
 
 @app.route("/api/data")
 def api_data():
     return jsonify(build_snapshot(force=request.args.get("refresh") == "1"))
+
+
+# ---- editing: record your actual fills into state.json ----
+
+@app.route("/position/add", methods=["POST"])
+def position_add():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    if tkr and shares > 0 and price > 0:
+        state = engine.load_state()
+        engine.apply_fill(state, engine.Order("BUY", tkr, shares, price, "MANUAL"))
+        engine.save_state(state)
+    return redirect("/?edit=1")
+
+
+@app.route("/position/update", methods=["POST"])
+def position_update():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    state = engine.load_state()
+    pos = state["positions"].get(tkr)
+    if pos and shares > 0 and price > 0:
+        pos["shares"] = shares
+        pos["entry"] = price
+        pos["peak"] = max(float(pos.get("peak", price)), price)  # never below entry
+        engine.save_state(state)
+    return redirect("/?edit=1")
+
+
+@app.route("/position/sell", methods=["POST"])
+def position_sell():
+    tkr = request.form.get("ticker", "")
+    try:
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    state = engine.load_state()
+    pos = state["positions"].get(tkr)
+    if pos and price > 0:
+        engine.apply_fill(state, engine.Order("SELL", tkr, pos["shares"], price, "MANUAL"))
+        engine.save_state(state)
+    return redirect("/?edit=1")
+
+
+@app.route("/cash", methods=["POST"])
+def set_cash():
+    try:
+        state = engine.load_state()
+        state["cash"] = float(request.form["cash"])
+        engine.save_state(state)
+    except (KeyError, ValueError):
+        pass
+    return redirect("/?edit=1")
 
 
 def _lan_ip():
