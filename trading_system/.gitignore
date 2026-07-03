@@ -1,0 +1,5 @@
+state.json
+equity_history.json
+trades.log
+__pycache__/
+*.pyc
