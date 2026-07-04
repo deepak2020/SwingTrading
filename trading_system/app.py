@@ -134,6 +134,9 @@ def build_snapshot(force=False):
     rank_of = {t: i + 1 for i, (t, _, _) in enumerate(sig["ranking"])}
     buf = config.TOP_N + config.RANK_BUFFER
 
+    def _fee(notional):
+        return round(max(notional * config.COMMISSION_PCT, config.COMMISSION_MIN))
+
     sell, hold = [], []
     for p in positions:
         t, now, stop = p["ticker"], p["now"], p["stop_price"]
@@ -148,17 +151,20 @@ def build_snapshot(force=False):
             p["action"] = "HOLD"
             p["action_reason"] = f"rank {rank_of.get(t, '-')} — inside top {buf}"
         (sell if p["action"] == "SELL" else hold).append(
-            {"ticker": t, "name": p["name"], "reason": p["action_reason"]})
+            {"ticker": t, "name": p["name"], "reason": p["action_reason"],
+             "fee": _fee(p["value"])})
 
     slots = max(0, config.TOP_N - len(hold))    # open slots after keeping the holds
+    alloc = (state["cash"] + invested) * config.MAX_EXPOSURE / config.TOP_N
     buy = []
     for t, m, _ in sig["ranking"]:
         if len(buy) >= slots:
             break
         if t in target and t not in held:
             buy.append({"ticker": t, "name": strategy.NAMES.get(t, t),
-                        "mom": round(m * 100, 1), "rank": rank_of[t]})
-    actions = {"sell": sell, "buy": buy, "hold": hold}
+                        "mom": round(m * 100, 1), "rank": rank_of[t], "fee": _fee(alloc)})
+    actions = {"sell": sell, "buy": buy, "hold": hold,
+               "fee_total": sum(a["fee"] for a in sell) + sum(a["fee"] for a in buy)}
 
     signal_list = []
     for i, (t, m, _) in enumerate(sig["ranking"][:buf]):
@@ -185,6 +191,9 @@ def build_snapshot(force=False):
         "n_positions": len(positions),
         "top_n": config.TOP_N,
         "trail_pct": int(config.TRAIL_STOP_PCT * 100),
+        "fees_paid": round(state.get("fees_paid", 0.0)),
+        "brokerage_min": config.COMMISSION_MIN,
+        "brokerage_pct": config.COMMISSION_PCT * 100,
         "positions": positions,
         "actions": actions,
         "signal": signal_list,
@@ -273,7 +282,7 @@ PAGE = r"""
 <body><div class="wrap">
   <header>
     <h1>Portfolio</h1>
-    <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · week ending {{d.as_of}}</span>
+    <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · {{d.brokerage_min}} SEK brokerage · week ending {{d.as_of}}</span>
     <span class="refresh">
       {% if edit %}<a class="btn" href="/">✓ Done</a>
       {% else %}<a class="btn ghost" href="?edit=1">✎ Edit</a>
@@ -292,22 +301,26 @@ PAGE = r"""
       <div class="val">{{ "{:,.0f}".format(d.cash) }}</div></div>
     <div class="card"><div class="label">Exposure</div>
       <div class="val">{{d.exposure_pct}}% <span class="sub">{{d.n_positions}}/{{d.top_n}}</span></div></div>
+    <div class="card"><div class="label">Brokerage paid</div>
+      <div class="val">{{ "{:,.0f}".format(d.fees_paid) }}
+        <span class="sub">SEK · {{d.brokerage_min}}/trade</span></div></div>
   </div>
 
   <h2>Recommended actions <span class="sub">week ending {{d.as_of}}</span></h2>
   {% if d.actions.sell or d.actions.buy or d.actions.hold %}
   <div class="summary">
     Sell {{d.actions.sell|length}} · Buy {{d.actions.buy|length}} · Hold {{d.actions.hold|length}}
+    {% if d.actions.sell or d.actions.buy %}· est. brokerage {{d.actions.fee_total}} SEK{% endif %}
     {% if not d.actions.sell and not d.actions.buy %}— nothing to do, hold everything.{% endif %}
   </div>
   <div class="actions">
     {% for a in d.actions.sell %}
     <div class="act"><span class="pill sell">SELL</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}}</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · ~{{a.fee}} SEK fee</span></div>
     {% endfor %}
     {% for a in d.actions.buy %}
     <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · +{{a.mom}}% 12w · fills a slot</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · +{{a.mom}}% 12w · ~{{a.fee}} SEK fee</span></div>
     {% endfor %}
     {% for a in d.actions.hold %}
     <div class="act"><span class="pill hold">HOLD</span>

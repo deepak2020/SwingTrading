@@ -19,7 +19,7 @@ MAX_EXPOSURE = 0.85       # fraction of capital invested (rest cash buffer)
 # ---- Account ----
 CAPITAL = float(os.environ.get("CAPITAL", 100_000))   # SEK, initial (paper mode)
 COMMISSION_PCT = 0.0015   # Nordnet 0.15%
-COMMISSION_MIN = 39       # SEK minimum per trade
+COMMISSION_MIN = 59       # SEK minimum per trade
 
 # ---- Universe: OMXS30 constituents (Yahoo tickers) ----
 TICKERS = [

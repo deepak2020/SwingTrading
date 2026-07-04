@@ -142,4 +142,5 @@ def apply_fill(state, order):
     else:  # SELL
         state["cash"] += order.notional() - fee
         state["positions"].pop(order.ticker, None)
+    state["fees_paid"] = state.get("fees_paid", 0.0) + fee   # cumulative brokerage
     return fee
