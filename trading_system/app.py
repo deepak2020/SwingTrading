@@ -178,6 +178,9 @@ def build_snapshot(force=False):
     hist = _log_equity(account_value)
 
     total_pl = account_value - config.CAPITAL
+    fees_paid = state.get("fees_paid", 0.0)
+    gross_pl = total_pl + fees_paid                    # profit before brokerage
+    fee_drag_pct = round(fees_paid / gross_pl * 100, 1) if gross_pl > 0 else None
     return {
         "as_of": sig["asof"],
         "updated": time.strftime("%Y-%m-%d %H:%M", time.localtime(_CACHE["ts"])),
@@ -191,7 +194,8 @@ def build_snapshot(force=False):
         "n_positions": len(positions),
         "top_n": config.TOP_N,
         "trail_pct": int(config.TRAIL_STOP_PCT * 100),
-        "fees_paid": round(state.get("fees_paid", 0.0)),
+        "fees_paid": round(fees_paid),
+        "fee_drag_pct": fee_drag_pct,
         "brokerage_min": config.COMMISSION_MIN,
         "brokerage_pct": config.COMMISSION_PCT * 100,
         "positions": positions,
@@ -303,7 +307,8 @@ PAGE = r"""
       <div class="val">{{d.exposure_pct}}% <span class="sub">{{d.n_positions}}/{{d.top_n}}</span></div></div>
     <div class="card"><div class="label">Brokerage paid</div>
       <div class="val">{{ "{:,.0f}".format(d.fees_paid) }}
-        <span class="sub">SEK · {{d.brokerage_min}}/trade</span></div></div>
+        <span class="sub">SEK · {{d.brokerage_min}}/trade</span></div>
+      <div class="sub">{% if d.fee_drag_pct is not none %}{{d.fee_drag_pct}}% of gross P/L{% else %}— of gross P/L{% endif %}</div></div>
   </div>
 
   <h2>Recommended actions <span class="sub">week ending {{d.as_of}}</span></h2>
