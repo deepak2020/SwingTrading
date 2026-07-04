@@ -178,7 +178,14 @@ def build_snapshot(force=False):
     hist = _log_equity(account_value)
 
     total_pl = account_value - config.CAPITAL
-    fees_paid = state.get("fees_paid", 0.0)
+    # Brokerage paid = the larger of what we've tracked on app trades and the
+    # brokerage implied by the positions currently held (each was bought once).
+    # This keeps the figure honest for holdings entered before fee-tracking, via
+    # "Save" corrections, or on a fresh database — it never shows 0 while you hold.
+    implied_entry_fees = sum(
+        max(p["shares"] * p["entry"] * config.COMMISSION_PCT, config.COMMISSION_MIN)
+        for p in positions)
+    fees_paid = max(state.get("fees_paid", 0.0), implied_entry_fees)
     gross_pl = total_pl + fees_paid                    # profit before brokerage
     fee_drag_pct = round(fees_paid / gross_pl * 100, 1) if gross_pl > 0 else None
     return {
