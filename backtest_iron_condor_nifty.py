@@ -63,7 +63,7 @@ ROLL_RATIO = 2.0                # roll when one short leg premium > 2x the other
 ROLL_TARGET_FRAC = 0.80         # re-short the covered side at ~80% of the tested short's premium
 BUTTERFLY_CONVERGENCE_PCT = 0.02  # shorts within 2% of spot => iron fly => close & reopen
 RISK_PER_TRADE_PCT = 0.05       # risk ~5% of capital per condor (sizing)
-COMMISSION_PER_LEG = 100        # Rs per leg per transaction (all-in placeholder; verify)
+COMMISSION_PER_LEG = 100        # Rs flat per ORDER (per leg), NOT per lot — India-style
 STRIKE_STEP = 50                # Nifty option strike interval (points)
 BID_ASK_SPREAD_PCT = 0.02       # ~2% of option price per transaction (liquid Nifty weeklies)
 THURSDAY = 3                    # weekday() for Thursday (Nifty weekly expiry day)
@@ -195,7 +195,7 @@ def open_condor(date, spot, iv, capital):
     risk_budget = capital * RISK_PER_TRADE_PCT
     n_lots = max(1, int(risk_budget // max(max_loss_pts * lot, 1)))
 
-    fee = COMMISSION_PER_LEG * 4 * n_lots
+    fee = COMMISSION_PER_LEG * 4    # flat per order (per leg), NOT per lot
     credit = credit_pts * lot * n_lots - fee
     pos = {
         "open_date": date, "expiry": date + timedelta(days=OPEN_TERM_DAYS),
@@ -238,7 +238,7 @@ for date in daily.index:
                     if newK < position["call_short_K"]:
                         new_ps = bs_price(spot, newK, T, RISK_FREE_RATE, iv, "put")
                         cash += (-adj_buy(ps) + adj_sell(new_ps)) * mult * n
-                        fee = COMMISSION_PER_LEG * 2 * n
+                        fee = COMMISSION_PER_LEG * 2    # 2 orders (buy-back + re-short), flat
                         cash -= fee
                         position["put_short_K"] = newK
                         position["rolls"] += 1
@@ -250,7 +250,7 @@ for date in daily.index:
                     if newK > position["put_short_K"]:
                         new_cs = bs_price(spot, newK, T, RISK_FREE_RATE, iv, "call")
                         cash += (-adj_buy(cs) + adj_sell(new_cs)) * mult * n
-                        fee = COMMISSION_PER_LEG * 2 * n
+                        fee = COMMISSION_PER_LEG * 2    # 2 orders (buy-back + re-short), flat
                         cash -= fee
                         position["call_short_K"] = newK
                         position["rolls"] += 1
@@ -264,7 +264,7 @@ for date in daily.index:
         if fly or cover:
             cs, cl, ps, pl = legs_value(position, spot, T, iv)
             cost_to_close = ((adj_buy(cs) - adj_sell(cl)) + (adj_buy(ps) - adj_sell(pl))) * mult * n
-            fee = COMMISSION_PER_LEG * 4 * n
+            fee = COMMISSION_PER_LEG * 4    # flat per order (per leg), NOT per lot
             cash += -cost_to_close - fee
             trade_log.append((date, "FLY_CLOSE" if fly else "COVER_CLOSE", spot,
                               -cost_to_close - fee, n))
@@ -330,7 +330,7 @@ print(f"  Implied vol = realized vol x {VOL_RISK_PREMIUM} (simplification, not r
 print(f"  Short legs sold at ~Rs {SHORT_PREMIUM:.0f}, cover wings bought at ~Rs {COVER_PREMIUM:.0f}")
 print(f"  Roll when one short > {ROLL_RATIO:.0f}x the other; re-short at ~{ROLL_TARGET_FRAC*100:.0f}% of tested premium")
 print(f"  Lot size: period-accurate (75 pre-2021, 50, 25, 75, 65 from 2026)")
-print(f"  Brokerage: Rs {COMMISSION_PER_LEG}/leg (all-in placeholder; STT/GST/exchange NOT added)")
+print(f"  Brokerage: Rs {COMMISSION_PER_LEG}/order (flat per leg, NOT per lot; STT/GST/exchange NOT added)")
 print(f"  Bid/ask spread: {BID_ASK_SPREAD_PCT*100:.0f}% of option price per transaction (liquid Nifty)")
 print(f"  Risk-free: {RISK_FREE_RATE*100:.1f}%   Sizing: {RISK_PER_TRADE_PCT*100:.0f}% capital risk/trade")
 
