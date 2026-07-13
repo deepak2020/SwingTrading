@@ -17,6 +17,7 @@ import time
 from datetime import date
 
 import pandas as pd
+import requests
 from flask import Flask, Response, jsonify, redirect, render_template_string, request
 
 import config
@@ -60,15 +61,56 @@ def healthz():
     return {"status": "ok", "storage": engine.storage_mode()}, 200
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
-_CACHE = {"prices": None, "ts": 0.0}
+_CACHE = {"prices": None, "index": None, "ts": 0.0}
 _CACHE_TTL = 900  # 15 minutes
+
+_INDEX_TICKER = "^OMX"   # OMXS30 index on Yahoo
+
+
+def _fetch_index():
+    """Daily closes of the OMXS30 index (~1y) for the market-context card."""
+    from urllib.parse import quote
+    hosts = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": "Mozilla/5.0"})
+    for attempt in range(4):
+        try:
+            r = sess.get(f"https://{hosts[attempt % 2]}/v8/finance/chart/{quote(_INDEX_TICKER)}",
+                         params={"range": "1y", "interval": "1d"}, timeout=30)
+            if r.status_code == 200:
+                res = r.json()["chart"]["result"][0]
+                idx = pd.to_datetime(res["timestamp"], unit="s").normalize()
+                close = res["indicators"]["quote"][0]["close"]
+                return pd.Series(close, index=idx, dtype=float).dropna()
+        except Exception:
+            time.sleep(0.3 * (attempt + 1))
+    return None
 
 
 def get_prices(force=False):
     if force or _CACHE["prices"] is None or (time.time() - _CACHE["ts"]) > _CACHE_TTL:
         _CACHE["prices"] = strategy.fetch_prices(config.TICKERS)
+        _CACHE["index"] = _fetch_index()
         _CACHE["ts"] = time.time()
     return _CACHE["prices"]
+
+
+def index_snapshot():
+    """Level, day change, and 20-week-SMA regime for the OMXS30 index (or None)."""
+    ix = _CACHE.get("index")
+    if ix is None or len(ix) < 2:
+        return None
+    level = float(ix.iloc[-1])
+    chg = (level / float(ix.iloc[-2]) - 1) * 100
+    weekly = ix.resample("W-FRI").last().dropna()
+    sma = weekly.rolling(config.TREND_SMA_WEEKS).mean().iloc[-1] if len(weekly) >= config.TREND_SMA_WEEKS else None
+    vs_sma = (level / float(sma) - 1) * 100 if sma is not None and pd.notna(sma) else None
+    return {
+        "level": round(level, 1),
+        "chg": round(chg, 2),
+        "vs_sma": round(vs_sma, 1) if vs_sma is not None else None,
+        "regime": ("uptrend" if vs_sma >= 0 else "downtrend") if vs_sma is not None else "n/a",
+    }
 
 
 def _load_equity_history():
@@ -208,6 +250,7 @@ def build_snapshot(force=False):
         "positions": positions,
         "actions": actions,
         "signal": signal_list,
+        "index": index_snapshot(),
         "equity_history": hist,
     }
 
@@ -316,6 +359,12 @@ PAGE = r"""
       <div class="val">{{ "{:,.0f}".format(d.fees_paid) }}
         <span class="sub">SEK · {{d.brokerage_min}}/trade</span></div>
       <div class="sub">{% if d.fee_drag_pct is not none %}{{d.fee_drag_pct}}% of gross P/L{% else %}— of gross P/L{% endif %}</div></div>
+    {% if d.index %}
+    <div class="card"><div class="label">OMXS30 index</div>
+      <div class="val">{{ "{:,.0f}".format(d.index.level) }}
+        <span class="sub {{ 'pos' if d.index.chg>=0 else 'neg' }}">{{ '+' if d.index.chg>=0 else '' }}{{d.index.chg}}%</span></div>
+      <div class="sub">{% if d.index.vs_sma is not none %}<span class="{{ 'pos' if d.index.regime=='uptrend' else 'neg' }}">{{d.index.regime}}</span> · {{ '+' if d.index.vs_sma>=0 else '' }}{{d.index.vs_sma}}% vs 20wk SMA{% else %}{{d.index.regime}}{% endif %}</div></div>
+    {% endif %}
   </div>
 
   <h2>Recommended actions <span class="sub">week ending {{d.as_of}}</span></h2>
