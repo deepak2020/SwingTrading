@@ -486,15 +486,35 @@ PAGE = r"""
     {% endfor %}
     </tbody></table></div>
 
-  <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min ·
-    read-only dashboard, places no orders ·
+  <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during
+    market hours (Mon–Fri 09:00–17:30 CET) · read-only dashboard, places no orders ·
     start capital {{ "{:,.0f}".format(d.start_capital) }} SEK</div>
 </div>
 <script>
-  // Auto-refresh every 5 minutes, but never while editing (would interrupt input).
-  if (!location.search.includes("edit=1")) {
-    setTimeout(function () { location.reload(); }, 300000);
-  }
+  // Auto-refresh every 5 min during Stockholm market hours (Mon-Fri 09:00-17:30),
+  // skipped while editing. Outside hours it re-checks client-side but does NOT
+  // reload, so it never churns the server overnight or on weekends. Stockholm
+  // time is computed explicitly, so it's correct wherever the page is opened.
+  (function () {
+    if (location.search.includes("edit=1")) return;
+    function marketOpen() {
+      var p = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Stockholm", weekday: "short",
+        hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(new Date());
+      var g = function (t) { return p.find(function (x) { return x.type === t; }).value; };
+      var wd = g("weekday");
+      var hh = parseInt(g("hour"), 10); if (hh === 24) hh = 0;
+      var mins = hh * 60 + parseInt(g("minute"), 10);
+      var weekday = wd !== "Sat" && wd !== "Sun";
+      return weekday && mins >= 540 && mins < 1050;   // 09:00 .. 17:30
+    }
+    function tick() {
+      if (marketOpen()) { location.reload(); }        // in-hours: pull fresh data
+      else { setTimeout(tick, 300000); }              // off-hours: just re-check, no reload
+    }
+    setTimeout(tick, 300000);
+  })();
 </script>
 </body></html>
 """
