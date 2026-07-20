@@ -62,7 +62,7 @@ def healthz():
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
 _CACHE = {"prices": None, "index": None, "ts": 0.0}
-_CACHE_TTL = 900  # 15 minutes
+_CACHE_TTL = 300  # 5 minutes — matches the page's 5-min auto-refresh
 
 _INDEX_TICKER = "^OMX"   # OMXS30 index on Yahoo
 
@@ -486,9 +486,17 @@ PAGE = r"""
     {% endfor %}
     </tbody></table></div>
 
-  <div class="foot">Prices updated {{d.updated}} · read-only dashboard, places no orders ·
+  <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min ·
+    read-only dashboard, places no orders ·
     start capital {{ "{:,.0f}".format(d.start_capital) }} SEK</div>
-</div></body></html>
+</div>
+<script>
+  // Auto-refresh every 5 minutes, but never while editing (would interrupt input).
+  if (!location.search.includes("edit=1")) {
+    setTimeout(function () { location.reload(); }, 300000);
+  }
+</script>
+</body></html>
 """
 
 
