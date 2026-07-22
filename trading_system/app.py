@@ -139,6 +139,7 @@ def _log_equity(value):
 def build_snapshot(force=False):
     prices = get_prices(force=force)
     px = strategy.latest_prices(prices)
+    prev_px = prices.ffill().iloc[-2] if len(prices) > 1 else px   # previous close, for today's change
     state = engine.load_state()
     sig = strategy.weekly_signal(prices)
     held = set(state["positions"])
@@ -149,6 +150,7 @@ def build_snapshot(force=False):
     for tkr, pos in state["positions"].items():
         now = float(px.get(tkr, pos["entry"]))
         peak = float(pos.get("peak", pos["entry"]))
+        prev = float(prev_px.get(tkr, now))
         value = pos["shares"] * now
         invested += value
         stop_price = peak * (1 - config.TRAIL_STOP_PCT)
@@ -159,6 +161,8 @@ def build_snapshot(force=False):
             "entry": round(pos["entry"], 2),
             "now": round(now, 2),
             "peak": round(peak, 2),
+            "day_chg": round((now / prev - 1) * 100, 1) if prev else None,
+            "day_sek": round(pos["shares"] * (now - prev), 0) if prev else None,
             "value": round(value, 2),
             "pl_pct": round((now / pos["entry"] - 1) * 100, 1),
             "pl_sek": round(pos["shares"] * (now - pos["entry"]), 0),
@@ -408,7 +412,8 @@ PAGE = r"""
   <div class="editcard">
     <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
       {{p.name}} <span class="sub">{{p.ticker}}</span>
-      · now {{p.now}} · P/L <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
+      · now {{p.now}}{% if p.day_chg is not none %} · today <span class="{{ 'pos' if p.day_chg>=0 else 'neg' }}">{{ '+' if p.day_chg>=0 else '' }}{{p.day_chg}}%</span>{% endif %}
+      · P/L <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
     <div class="frow">
       <form method="post" action="/position/update">
         <input type="hidden" name="ticker" value="{{p.ticker}}">
@@ -448,14 +453,18 @@ PAGE = r"""
   {% elif d.positions %}
   <div class="tablescroll"><table>
     <thead><tr>
-      <th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Peak</th>
+      <th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Today</th><th>Peak</th>
       <th>P/L</th><th>Value</th><th>Weight</th><th>Stop @</th><th>To stop</th>
     </tr></thead><tbody>
     {% for p in d.positions %}
     <tr>
       <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
         <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
-      <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td><td>{{p.peak}}</td>
+      <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.day_chg and p.day_chg>=0 else 'neg' }}">
+        {% if p.day_chg is not none %}{{ '+' if p.day_chg>=0 else '' }}{{p.day_chg}}%<br>
+        <span class="sub">{{ '+' if p.day_sek>=0 else '' }}{{ "{:,.0f}".format(p.day_sek) }}</span>{% else %}—{% endif %}</td>
+      <td>{{p.peak}}</td>
       <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
         <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
       <td>{{ "{:,.0f}".format(p.value) }}</td>
