@@ -16,6 +16,18 @@ TREND_SMA_WEEKS = 20      # only own stocks above their 20-week SMA
 TRAIL_STOP_PCT = 0.20     # daily-checked 20% trailing stop
 MAX_EXPOSURE = 0.85       # fraction of capital invested (rest cash buffer)
 
+# ---- Trailing Support/Resistance strategy (see ../backtest_sr_trailing.py) ----
+# Buy a dip to support in an uptrend; exit on a 20% trailing stop (not at
+# resistance). Best ACTIVE strategy in the research. Run as a simulated paper
+# book on the dashboard alongside the momentum book.
+SR_LOOKBACK_W = 12        # Donchian window (weeks) for support = rolling low
+SR_SUPPORT_TOUCH = 0.03   # "near support" = weekly low within 3% of that low
+SR_TREND_SMA_W = 40       # only buy dips while price is above its 40-week SMA
+SR_STOP_BELOW = 0.05      # early-failure stop: 5% below the entry support level
+SR_TRAIL = 0.20           # trailing stop from the position's peak
+SR_MAX_POS = 6            # concurrent positions, equal-weight
+SR_HISTORY_YEARS = 3      # how much daily OHLC to pull for the live sim
+
 # ---- Account ----
 CAPITAL = float(os.environ.get("CAPITAL", 100_000))   # SEK, initial (paper mode)
 COMMISSION_PCT = 0.0015   # Nordnet 0.15%

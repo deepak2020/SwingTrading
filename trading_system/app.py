@@ -22,6 +22,7 @@ from flask import Flask, Response, jsonify, redirect, render_template_string, re
 
 import config
 import engine
+import sr_book
 import strategy
 
 app = Flask(__name__)
@@ -61,7 +62,7 @@ def healthz():
     return {"status": "ok", "storage": engine.storage_mode()}, 200
 
 # In-memory price cache so a page refresh doesn't re-fetch 29 tickers every time.
-_CACHE = {"prices": None, "index": None, "ts": 0.0}
+_CACHE = {"prices": None, "ohlc": None, "index": None, "ts": 0.0}
 _CACHE_TTL = 300  # 5 minutes — matches the page's 5-min auto-refresh
 
 _INDEX_TICKER = "^OMX"   # OMXS30 index on Yahoo
@@ -88,8 +89,21 @@ def _fetch_index():
 
 
 def get_prices(force=False):
+    """Refresh the shared cache once per TTL. Pulls daily OHLC (used by both the
+    momentum book's closes and the S/R paper book); falls back to close-only if
+    the OHLC fetch fails so the momentum book always works."""
     if force or _CACHE["prices"] is None or (time.time() - _CACHE["ts"]) > _CACHE_TTL:
-        _CACHE["prices"] = strategy.fetch_prices(config.TICKERS)
+        ohlc = None
+        try:
+            ohlc = strategy.fetch_ohlc(config.TICKERS, years=config.SR_HISTORY_YEARS)
+        except Exception:
+            ohlc = None
+        if ohlc is not None and not ohlc["close"].empty:
+            _CACHE["ohlc"] = ohlc
+            _CACHE["prices"] = ohlc["close"]
+        else:
+            _CACHE["ohlc"] = None
+            _CACHE["prices"] = strategy.fetch_prices(config.TICKERS)
         _CACHE["index"] = _fetch_index()
         _CACHE["ts"] = time.time()
     return _CACHE["prices"]
@@ -256,8 +270,20 @@ def build_snapshot(force=False):
         "signal": signal_list,
         "index": index_snapshot(),
         "equity_history": hist,
-        "sr_candidates": strategy.sr_signal(prices),
+        "sr": _sr_snapshot(),
     }
+
+
+def _sr_snapshot():
+    """The Trailing-S/R paper book, simulated on the cached OHLC (or None if the
+    OHLC feed was unavailable this refresh)."""
+    ohlc = _CACHE.get("ohlc")
+    if not ohlc:
+        return None
+    try:
+        return sr_book.simulate(ohlc)
+    except Exception:
+        return None
 
 
 PAGE = r"""
@@ -496,29 +522,88 @@ PAGE = r"""
     {% endfor %}
     </tbody></table></div>
 
-  <h2>Trailing S/R watch <span class="sub">experimental · buy-the-dip candidates</span></h2>
-  <p class="sub" style="margin:-4px 0 10px">
-    Names dipping to their 12-week support while still above the 40-week trend (an
-    up week). This is the best strategy in our backtests
-    (<code>backtest_sr_trailing.py</code>) — buy the dip, exit on a 20% trailing
-    stop. Informational only; the live book above still runs momentum.
-    <em>Close-only approximation.</em></p>
-  {% if d.sr_candidates %}
+  {% if d.sr %}
+  <h2 style="margin-top:34px;border-top:1px solid var(--line);padding-top:22px">
+    Trailing S/R paper book <span class="sub">the best backtested strategy, run live · simulation</span></h2>
+  <p class="sub" style="margin:-4px 0 12px">
+    Buy a dip to 12-week support in an uptrend; exit on a {{d.sr.trail_pct}}% trailing stop
+    (see <code>backtest_sr_trailing.py</code>). Auto-executed at each weekly close from
+    {{d.sr.since}} on a simulated {{ "{:,.0f}".format(d.sr.start_capital) }} SEK — paper only,
+    places no orders. Separate from your real momentum book above.</p>
+
+  <div class="cards">
+    <div class="card"><div class="label">S/R book value</div>
+      <div class="val">{{ "{:,.0f}".format(d.sr.account_value) }} <span class="sub">SEK</span></div></div>
+    <div class="card"><div class="label">S/R total P/L</div>
+      <div class="val {{ 'pos' if d.sr.total_pl>=0 else 'neg' }}">
+        {{ '+' if d.sr.total_pl>=0 else '' }}{{ "{:,.0f}".format(d.sr.total_pl) }}
+        <span class="sub">({{ '+' if d.sr.total_pl_pct>=0 else '' }}{{d.sr.total_pl_pct}}%)</span></div></div>
+    <div class="card"><div class="label">S/R CAGR</div>
+      <div class="val {{ 'pos' if d.sr.cagr_pct>=0 else 'neg' }}">{{ '+' if d.sr.cagr_pct>=0 else '' }}{{d.sr.cagr_pct}}%</div></div>
+    <div class="card"><div class="label">S/R exposure</div>
+      <div class="val">{{d.sr.exposure_pct}}% <span class="sub">{{d.sr.n_positions}}/{{d.sr.max_pos}}</span></div></div>
+  </div>
+
+  {% if d.sr.buy_today or d.sr.sell_today %}
+  <div class="summary">Signals as of the latest close ({{d.sr.as_of}}):
+    Buy {{d.sr.buy_today|length}} · Sell {{d.sr.sell_today|length}}</div>
+  <div class="actions">
+    {% for a in d.sr.sell_today %}
+    <div class="act"><span class="pill sell">SELL</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ {{a.price}}</span></div>
+    {% endfor %}
+    {% for a in d.sr.buy_today %}
+    <div class="act"><span class="pill buy">BUY</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ {{a.price}}</span></div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="summary">No new buy/sell signals at the last close ({{d.sr.as_of}}) — holding.</div>
+  {% endif %}
+
+  {% if d.sr_chart %}<div style="margin:14px 0">{{ d.sr_chart|safe }}</div>{% endif %}
+
+  <h2>S/R holdings</h2>
+  {% if d.sr.positions %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th>40w SMA</th><th></th></tr></thead><tbody>
-    {% for s in d.sr_candidates %}
+    <thead><tr><th>Stock</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop</th><th>To stop</th><th>Value</th></tr></thead><tbody>
+    {% for p in d.sr.positions %}
     <tr>
-      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
-      <td>{{ "%.2f"|format(s.price) }}</td>
-      <td>{{ "%.2f"|format(s.support) }}</td>
-      <td class="pos">+{{ "%.1f"|format(s.pct_above) }}%</td>
-      <td>{{ "%.2f"|format(s.sma40) }}</td>
-      <td><span class="tag buy">near support</span></td>
+      <td><strong>{{p.name}}</strong> <span class="sub">since {{p.entry_date}}</span></td>
+      <td>{{p.entry}}</td>
+      <td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%
+        <span class="sub">({{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }})</span></td>
+      <td>{{p.peak}}</td>
+      <td>{{p.stop_price}}</td>
+      <td class="{{ 'neg' if p.stop_dist_pct is not none and p.stop_dist_pct < 5 else '' }}">
+        {% if p.stop_dist_pct is not none %}{{p.stop_dist_pct}}%{% else %}—{% endif %}</td>
+      <td>{{ "{:,.0f}".format(p.value) }}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
   {% else %}
-  <p class="sub">No names near support in an uptrend this week — the strategy would hold cash / wait.</p>
+  <p class="sub">No open S/R positions — the strategy is in cash, waiting for a dip to support.</p>
+  {% endif %}
+
+  <h2>S/R watchlist <span class="sub">setting up for the next Friday close</span></h2>
+  {% if d.sr.watch %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th></th></tr></thead><tbody>
+    {% for s in d.sr.watch %}
+    <tr>
+      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
+      <td>{{s.price}}</td>
+      <td>{{s.support}}</td>
+      <td class="pos">+{{s.pct_above}}%</td>
+      <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">would buy</span>{% else %}<span class="tag">queued</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  <p class="sub" style="margin-top:8px">{{d.sr.free_slots}} free slot(s). These are candidates on the latest week; the book buys the closest-to-support first at the Friday close if still valid.</p>
+  {% else %}
+  <p class="sub">Nothing near support in an uptrend right now — no buys queued.</p>
+  {% endif %}
   {% endif %}
 
   <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during
@@ -555,8 +640,9 @@ PAGE = r"""
 """
 
 
-def _sparkline(hist, w=920, h=120, pad=8):
-    """Minimal inline-SVG equity line (no external deps)."""
+def _sparkline(hist, w=920, h=120, pad=8, color=None):
+    """Minimal inline-SVG equity line (no external deps). `color` overrides the
+    default up/down green/red (used to tint the S/R book's curve differently)."""
     vals = [p["value"] for p in hist]
     lo, hi = min(vals), max(vals)
     rng = (hi - lo) or 1
@@ -566,7 +652,7 @@ def _sparkline(hist, w=920, h=120, pad=8):
     pts = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(vals))
     area = f"{pad},{h-pad} " + pts + f" {w-pad},{h-pad}"
     up = vals[-1] >= vals[0]
-    col = "#22c55e" if up else "#ef4444"
+    col = color or ("#22c55e" if up else "#ef4444")
     return (
         f'<svg viewBox="0 0 {w} {h}" preserveAspectRatio="none" role="img" '
         f'aria-label="equity curve">'
@@ -580,6 +666,10 @@ def _sparkline(hist, w=920, h=120, pad=8):
 def index():
     d = build_snapshot(force=request.args.get("refresh") == "1")
     chart = _sparkline(d["equity_history"]) if len(d["equity_history"]) > 1 else ""
+    sr_chart = ""
+    if d.get("sr") and len(d["sr"]["equity_history"]) > 1:
+        sr_chart = _sparkline(d["sr"]["equity_history"], color="#0ea5e9")
+    d["sr_chart"] = sr_chart
     universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.TICKERS),
                       key=lambda x: x[1])
     return render_template_string(PAGE, d=d, chart=chart,

@@ -63,6 +63,51 @@ def fetch_prices(tickers, years=2):
     return df.dropna(axis=1, thresh=int(len(df) * 0.8))
 
 
+def fetch_ohlc(tickers, years=3):
+    """Daily split/dividend-adjusted OHLC for the universe.
+
+    Returns {'close','high','low','open'} as DataFrames (columns=tickers),
+    restricted to names with >=80% close coverage. The close frame is identical
+    in meaning to fetch_prices()'s output, so the momentum book can reuse it and
+    the whole page needs only one network fetch.
+    """
+    now = datetime.now(timezone.utc)
+    p1 = int(now.timestamp()) - int(years * 365.25 * 86400)
+    p2 = int(now.timestamp())
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": "Mozilla/5.0"})
+    frames = {"close": {}, "high": {}, "low": {}, "open": {}}
+    for tkr in tickers:
+        for attempt in range(4):
+            host = _YAHOO_HOSTS[attempt % 2]
+            try:
+                r = sess.get(f"https://{host}/v8/finance/chart/{tkr}",
+                             params={"period1": p1, "period2": p2, "interval": "1d",
+                                     "events": "div,splits"}, timeout=30)
+                if r.status_code == 200:
+                    res = r.json()["chart"]["result"][0]
+                    if "timestamp" not in res:
+                        break
+                    idx = pd.to_datetime(res["timestamp"], unit="s").normalize()
+                    q = res["indicators"]["quote"][0]
+                    close = pd.Series(q["close"], index=idx, dtype=float)
+                    adj_list = res["indicators"].get("adjclose", [{}])[0].get("adjclose")
+                    adj = pd.Series(adj_list, index=idx, dtype=float) if adj_list is not None else close
+                    factor = (adj / close).fillna(1.0)     # back-adjust OHL by the close ratio
+                    frames["close"][tkr] = adj
+                    frames["high"][tkr] = pd.Series(q["high"], index=idx, dtype=float) * factor
+                    frames["low"][tkr] = pd.Series(q["low"], index=idx, dtype=float) * factor
+                    frames["open"][tkr] = pd.Series(q["open"], index=idx, dtype=float) * factor
+                    break
+                time.sleep(0.5 * (attempt + 1))
+            except Exception:
+                time.sleep(0.5 * (attempt + 1))
+        time.sleep(0.1)
+    close = pd.DataFrame(frames["close"]).sort_index()
+    keep = close.dropna(axis=1, thresh=int(len(close) * 0.8)).columns
+    return {k: pd.DataFrame(v).sort_index()[keep] for k, v in frames.items()}
+
+
 def weekly_signal(prices):
     """Return the current Friday-close ranking and target sets.
 
