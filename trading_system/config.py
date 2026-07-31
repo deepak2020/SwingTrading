@@ -50,6 +50,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("STATE_DIR", _HERE)
 os.makedirs(DATA_DIR, exist_ok=True)
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
+SR_STATE_FILE = os.path.join(DATA_DIR, "sr_state.json")   # trailing-S/R paper book
 LOG_FILE = os.path.join(DATA_DIR, "trades.log")
 
 # ---- Nordnet API (fill via environment; never hard-code secrets) ----

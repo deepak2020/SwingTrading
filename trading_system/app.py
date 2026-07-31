@@ -275,13 +275,13 @@ def build_snapshot(force=False):
 
 
 def _sr_snapshot():
-    """The Trailing-S/R paper book, simulated on the cached OHLC (or None if the
-    OHLC feed was unavailable this refresh)."""
+    """The editable Trailing-S/R paper book: your recorded S/R positions evaluated
+    against the live signal (buy/sell). None if the OHLC feed was unavailable."""
     ohlc = _CACHE.get("ohlc")
     if not ohlc:
         return None
     try:
-        return sr_book.simulate(ohlc)
+        return sr_book.live_book(ohlc, engine.load_state("sr"))
     except Exception:
         return None
 
@@ -524,56 +524,96 @@ PAGE = r"""
 
   {% if d.sr %}
   <h2 style="margin-top:34px;border-top:1px solid var(--line);padding-top:22px">
-    Trailing S/R paper book <span class="sub">the best backtested strategy, run live · simulation</span></h2>
+    Trailing S/R book <span class="sub">your S/R portfolio · buy the dip, 20% trailing stop</span></h2>
   <p class="sub" style="margin:-4px 0 12px">
-    Buy a dip to 12-week support in an uptrend; exit on a {{d.sr.trail_pct}}% trailing stop
-    (see <code>backtest_sr_trailing.py</code>). Auto-executed at each weekly close from
-    {{d.sr.since}} on a simulated {{ "{:,.0f}".format(d.sr.start_capital) }} SEK — paper only,
-    places no orders. Separate from your real momentum book above.</p>
+    A separate book for the trailing support/resistance strategy
+    (<code>backtest_sr_trailing.py</code>). Record your actual S/R fills below (tap
+    <strong>✎ Edit</strong>); the dashboard flags <strong>SELL</strong> when a holding hits its
+    {{d.sr.trail_pct}}% trailing stop and <strong>BUY</strong> when a name is at support in an uptrend.</p>
 
   <div class="cards">
-    <div class="card"><div class="label">S/R book value</div>
+    <div class="card"><div class="label">S/R value</div>
       <div class="val">{{ "{:,.0f}".format(d.sr.account_value) }} <span class="sub">SEK</span></div></div>
-    <div class="card"><div class="label">S/R total P/L</div>
+    <div class="card"><div class="label">S/R P/L</div>
       <div class="val {{ 'pos' if d.sr.total_pl>=0 else 'neg' }}">
         {{ '+' if d.sr.total_pl>=0 else '' }}{{ "{:,.0f}".format(d.sr.total_pl) }}
         <span class="sub">({{ '+' if d.sr.total_pl_pct>=0 else '' }}{{d.sr.total_pl_pct}}%)</span></div></div>
-    <div class="card"><div class="label">S/R CAGR</div>
-      <div class="val {{ 'pos' if d.sr.cagr_pct>=0 else 'neg' }}">{{ '+' if d.sr.cagr_pct>=0 else '' }}{{d.sr.cagr_pct}}%</div></div>
+    <div class="card"><div class="label">S/R cash</div>
+      <div class="val">{{ "{:,.0f}".format(d.sr.cash) }}</div></div>
     <div class="card"><div class="label">S/R exposure</div>
       <div class="val">{{d.sr.exposure_pct}}% <span class="sub">{{d.sr.n_positions}}/{{d.sr.max_pos}}</span></div></div>
   </div>
 
-  {% if d.sr.buy_today or d.sr.sell_today %}
-  <div class="summary">Signals as of the latest close ({{d.sr.as_of}}):
-    Buy {{d.sr.buy_today|length}} · Sell {{d.sr.sell_today|length}}</div>
+  <div class="summary">Signals at the last close ({{d.sr.as_of}}):
+    Sell {{d.sr.sell_signals|length}} · Buy {{d.sr.buy_signals|length}}
+    {% if not d.sr.sell_signals and not d.sr.buy_signals %}— nothing to do.{% endif %}</div>
+  {% if d.sr.sell_signals or d.sr.buy_signals %}
   <div class="actions">
-    {% for a in d.sr.sell_today %}
+    {% for a in d.sr.sell_signals %}
     <div class="act"><span class="pill sell">SELL</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ {{a.price}}</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ ~{{a.price}}</span></div>
     {% endfor %}
-    {% for a in d.sr.buy_today %}
+    {% for a in d.sr.buy_signals %}
     <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ {{a.price}}</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · at support · price {{a.price}} · support {{a.support}} (+{{a.pct_above}}%)</span></div>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="summary">No new buy/sell signals at the last close ({{d.sr.as_of}}) — holding.</div>
   {% endif %}
 
-  {% if d.sr_chart %}<div style="margin:14px 0">{{ d.sr_chart|safe }}</div>{% endif %}
-
   <h2>S/R holdings</h2>
-  {% if d.sr.positions %}
+  {% if edit %}
+  <p class="hint">Record your real S/R fills. The stop level and peak are computed from
+    live prices — you only enter shares, price, and (optionally) the buy date.</p>
+  {% for p in d.sr.positions %}
+  <div class="editcard">
+    <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
+      {{p.name}} <span class="sub">{{p.ticker}} · now {{p.now}} · stop {{p.stop_price}}
+      · P/L</span> <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
+    <div class="frow">
+      <form method="post" action="/sr/position/update">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Shares<input type="number" name="shares" value="{{p.shares}}" min="1" step="1" inputmode="numeric"></label>
+        <label>Entry price<input type="number" name="price" value="{{p.entry}}" min="0" step="0.01" inputmode="decimal"></label>
+        <label>Buy date<input type="date" name="since" value="{{p.since}}"></label>
+        <button>Save</button>
+      </form>
+      <form method="post" action="/sr/position/sell" onsubmit="return confirm('Sell all {{p.shares}} {{p.ticker}} from the S/R book?');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
+        <button class="danger">Sell</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="editcard">
+    <div class="ename">＋ Add S/R position</div>
+    <form class="frow" method="post" action="/sr/position/add">
+      <label>Stock<select name="ticker">
+        {% for t, n in universe %}<option value="{{t}}">{{n}} ({{t}})</option>{% endfor %}
+      </select></label>
+      <label>Shares<input type="number" name="shares" min="1" step="1" inputmode="numeric" required></label>
+      <label>Price<input type="number" name="price" min="0" step="0.01" inputmode="decimal" required></label>
+      <label>Buy date<input type="date" name="since"></label>
+      <button>Add</button>
+    </form>
+  </div>
+  <div class="editcard">
+    <div class="ename">S/R cash</div>
+    <form class="frow" method="post" action="/sr/cash">
+      <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.sr.cash) }}" step="0.01" inputmode="decimal"></label>
+      <button>Set cash</button>
+    </form>
+  </div>
+  {% elif d.sr.positions %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop</th><th>To stop</th><th>Value</th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value</th></tr></thead><tbody>
     {% for p in d.sr.positions %}
     <tr>
-      <td><strong>{{p.name}}</strong> <span class="sub">since {{p.entry_date}}</span></td>
-      <td>{{p.entry}}</td>
-      <td>{{p.now}}</td>
-      <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%
-        <span class="sub">({{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }})</span></td>
+      <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
+        <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
+      <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
+        <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
       <td>{{p.peak}}</td>
       <td>{{p.stop_price}}</td>
       <td class="{{ 'neg' if p.stop_dist_pct is not none and p.stop_dist_pct < 5 else '' }}">
@@ -583,10 +623,12 @@ PAGE = r"""
     {% endfor %}
     </tbody></table></div>
   {% else %}
-  <p class="sub">No open S/R positions — the strategy is in cash, waiting for a dip to support.</p>
+  <div class="empty">No S/R positions yet.<br>
+    Tap <strong>✎ Edit</strong> to record what you've bought for the S/R strategy —
+    the <strong>BUY</strong> signals above are where it would start.</div>
   {% endif %}
 
-  <h2>S/R watchlist <span class="sub">setting up for the next Friday close</span></h2>
+  <h2>S/R watchlist <span class="sub">at support in an uptrend now</span></h2>
   {% if d.sr.watch %}
   <div class="tablescroll"><table>
     <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th></th></tr></thead><tbody>
@@ -596,13 +638,13 @@ PAGE = r"""
       <td>{{s.price}}</td>
       <td>{{s.support}}</td>
       <td class="pos">+{{s.pct_above}}%</td>
-      <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">would buy</span>{% else %}<span class="tag">queued</span>{% endif %}</td>
+      <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">buy now</span>{% else %}<span class="tag">full</span>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
-  <p class="sub" style="margin-top:8px">{{d.sr.free_slots}} free slot(s). These are candidates on the latest week; the book buys the closest-to-support first at the Friday close if still valid.</p>
+  <p class="sub" style="margin-top:8px">{{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}. Buy the closest-to-support names first.</p>
   {% else %}
-  <p class="sub">Nothing near support in an uptrend right now — no buys queued.</p>
+  <p class="sub">Nothing near support in an uptrend right now — no buys.</p>
   {% endif %}
   {% endif %}
 
@@ -666,10 +708,6 @@ def _sparkline(hist, w=920, h=120, pad=8, color=None):
 def index():
     d = build_snapshot(force=request.args.get("refresh") == "1")
     chart = _sparkline(d["equity_history"]) if len(d["equity_history"]) > 1 else ""
-    sr_chart = ""
-    if d.get("sr") and len(d["sr"]["equity_history"]) > 1:
-        sr_chart = _sparkline(d["sr"]["equity_history"], color="#0ea5e9")
-    d["sr_chart"] = sr_chart
     universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.TICKERS),
                       key=lambda x: x[1])
     return render_template_string(PAGE, d=d, chart=chart,
@@ -737,6 +775,72 @@ def set_cash():
         state = engine.load_state()
         state["cash"] = float(request.form["cash"])
         engine.save_state(state)
+    except (KeyError, ValueError):
+        pass
+    return redirect("/?edit=1")
+
+
+# ---- editing the trailing-S/R book (a separate portfolio, book="sr") ----
+
+@app.route("/sr/position/add", methods=["POST"])
+def sr_position_add():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    since = request.form.get("since") or date.today().isoformat()
+    if tkr and shares > 0 and price > 0:
+        state = engine.load_state("sr")
+        engine.apply_fill(state, engine.Order("BUY", tkr, shares, price, "MANUAL"))
+        state["positions"][tkr]["since"] = since   # honour the recorded buy date
+        engine.save_state(state, "sr")
+    return redirect("/?edit=1")
+
+
+@app.route("/sr/position/update", methods=["POST"])
+def sr_position_update():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    state = engine.load_state("sr")
+    pos = state["positions"].get(tkr)
+    if pos and shares > 0 and price > 0:
+        pos["shares"] = shares
+        pos["entry"] = price
+        pos["peak"] = max(float(pos.get("peak", price)), price)
+        if request.form.get("since"):
+            pos["since"] = request.form["since"]
+        pos.pop("sup_entry", None)   # recompute support from history on next load
+        engine.save_state(state, "sr")
+    return redirect("/?edit=1")
+
+
+@app.route("/sr/position/sell", methods=["POST"])
+def sr_position_sell():
+    tkr = request.form.get("ticker", "")
+    try:
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/?edit=1")
+    state = engine.load_state("sr")
+    pos = state["positions"].get(tkr)
+    if pos and price > 0:
+        engine.apply_fill(state, engine.Order("SELL", tkr, pos["shares"], price, "MANUAL"))
+        engine.save_state(state, "sr")
+    return redirect("/?edit=1")
+
+
+@app.route("/sr/cash", methods=["POST"])
+def sr_set_cash():
+    try:
+        state = engine.load_state("sr")
+        state["cash"] = float(request.form["cash"])
+        engine.save_state(state, "sr")
     except (KeyError, ValueError):
         pass
     return redirect("/?edit=1")

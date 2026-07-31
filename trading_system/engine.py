@@ -34,6 +34,12 @@ class Order:
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 _DEFAULT_STATE = lambda: {"cash": config.CAPITAL, "positions": {}}
 
+# Two independent paper books share the same storage, keyed by name:
+#   "momentum" -> the live top-N momentum book (id 1 / state.json)
+#   "sr"       -> the trailing support/resistance book (id 2 / sr_state.json)
+_BOOK_ID = {"momentum": 1, "sr": 2}
+_BOOK_FILE = {"momentum": config.STATE_FILE, "sr": config.SR_STATE_FILE}
+
 
 def storage_mode():
     """'postgres' when a DATABASE_URL is configured, else 'file' (ephemeral on
@@ -51,34 +57,36 @@ def _db():
     return conn
 
 
-def load_state():
+def load_state(book="momentum"):
     if DATABASE_URL:
         conn = _db()
         try:
             with conn, conn.cursor() as cur:
-                cur.execute("SELECT data FROM app_state WHERE id = 1")
+                cur.execute("SELECT data FROM app_state WHERE id = %s", [_BOOK_ID[book]])
                 row = cur.fetchone()
         finally:
             conn.close()
         return json.loads(row[0]) if row else _DEFAULT_STATE()
-    if os.path.exists(config.STATE_FILE):
-        with open(config.STATE_FILE) as f:
+    path = _BOOK_FILE[book]
+    if os.path.exists(path):
+        with open(path) as f:
             return json.load(f)
     return _DEFAULT_STATE()
 
 
-def save_state(state):
+def save_state(state, book="momentum"):
     payload = json.dumps(state, default=str)
     if DATABASE_URL:
         conn = _db()
         try:
             with conn, conn.cursor() as cur:
-                cur.execute("INSERT INTO app_state (id, data) VALUES (1, %s) "
-                            "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data", [payload])
+                cur.execute("INSERT INTO app_state (id, data) VALUES (%s, %s) "
+                            "ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data",
+                            [_BOOK_ID[book], payload])
         finally:
             conn.close()
         return
-    with open(config.STATE_FILE, "w") as f:
+    with open(_BOOK_FILE[book], "w") as f:
         f.write(json.dumps(state, indent=2, default=str))
 
 
