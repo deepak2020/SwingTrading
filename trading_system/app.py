@@ -544,9 +544,10 @@ PAGE = r"""
       <div class="val">{{d.sr.exposure_pct}}% <span class="sub">{{d.sr.n_positions}}/{{d.sr.max_pos}}</span></div></div>
   </div>
 
-  <div class="summary">Signals at the last close ({{d.sr.as_of}}):
-    Sell {{d.sr.sell_signals|length}} · Buy {{d.sr.buy_signals|length}}
-    {% if not d.sr.sell_signals and not d.sr.buy_signals %}— nothing to do.{% endif %}</div>
+  <div class="summary">Sell {{d.sr.sell_signals|length}} · Buy {{d.sr.buy_signals|length}}
+    {% if not d.sr.sell_signals and not d.sr.buy_signals %}— nothing to do.{% endif %}
+    <br><span class="sub">BUY confirmed at the Friday close of {{d.sr.signal_week}} (stable all week — buy Monday).
+    SELL checked live ({{d.sr.as_of}}).</span></div>
   {% if d.sr.sell_signals or d.sr.buy_signals %}
   <div class="actions">
     {% for a in d.sr.sell_signals %}
@@ -628,7 +629,7 @@ PAGE = r"""
     the <strong>BUY</strong> signals above are where it would start.</div>
   {% endif %}
 
-  <h2>S/R watchlist <span class="sub">dipped to support &amp; bounced this week</span></h2>
+  <h2>S/R watchlist <span class="sub">confirmed at Friday close {{d.sr.signal_week}} · buy Monday</span></h2>
   {% if d.sr.watch %}
   <div class="tablescroll"><table>
     <thead><tr><th>Stock</th><th>Week low</th><th>Support</th><th>Low vs support</th><th>Close</th><th>Bounce</th><th></th></tr></thead><tbody>

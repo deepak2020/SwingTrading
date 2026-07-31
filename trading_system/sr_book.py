@@ -36,21 +36,37 @@ def _weeklies(ohlc):
     )
 
 
+def _signal_week_pos(week_index):
+    """Position of the last COMPLETED weekly bar. A week labelled Friday F counts as
+    complete once it is past F 17:30 Stockholm (the market close). This freezes the
+    buy signal to the most recent Friday close — stable intraweek, rolls forward
+    right after Friday's close — so the signal never flickers during the day."""
+    try:
+        now = pd.Timestamp.now(tz="Europe/Stockholm").tz_localize(None)
+    except Exception:
+        now = pd.Timestamp.now()
+    completed = [i for i, d in enumerate(week_index)
+                 if now >= d.normalize() + pd.Timedelta(hours=17, minutes=30)]
+    return completed[-1] if completed else len(week_index) - 1
+
+
 def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
-    """Names meeting the entry test on the latest completed week, not already held.
+    """Names meeting the entry test at the last COMPLETED Friday close, not already held.
 
     Entry test (matches backtest_sr_trailing.py): the week's LOW dipped to within
-    `support_touch` of the PRIOR `lookback_w`-week low (support, excluding the
-    current week via shift(1)), the week closed UP (close>open, the bounce), and
-    the close is above the `trend_sma_w` SMA (uptrend). The buy fills at the close,
-    so the close can sit above support after the bounce — that is expected.
+    `support_touch` of the PRIOR `lookback_w`-week low (support, excluding that week
+    via shift(1)), the week closed UP (close>open, the bounce), and the close is
+    above the `trend_sma_w` SMA (uptrend). Evaluated on the last completed week so
+    the signal does not flicker intraday; the buy fills at that close, so the close
+    can sit above support after the bounce — that is expected.
     """
     wc, wh, wl, wo = _weeklies(ohlc)
     if len(wc) < trend_sma_w + 2:
         return []
-    support = wl.rolling(lookback_w).min().shift(1).iloc[-1]   # prior weeks only
-    sma = wc.rolling(trend_sma_w).mean().iloc[-1]
-    c, l, o = wc.iloc[-1], wl.iloc[-1], wo.iloc[-1]
+    pos = _signal_week_pos(wc.index)
+    support = wl.rolling(lookback_w).min().shift(1).iloc[pos]   # prior weeks only
+    sma = wc.rolling(trend_sma_w).mean().iloc[pos]
+    c, l, o = wc.iloc[pos], wl.iloc[pos], wo.iloc[pos]
     out = []
     for t in wc.columns:
         if t in held:
@@ -155,14 +171,17 @@ def live_book(ohlc, state,
     for r in rows:
         r["weight"] = round(r["value"] / invested * 100, 1) if invested else 0.0
 
-    # buy signals = watchlist, limited to free slots
+    # buy signals = watchlist at the last COMPLETED Friday close (stable all week)
     watch = _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w)
     free_slots = max(max_pos - len(held), 0)
     buy_signals = watch[:free_slots]
+    wc = ohlc["close"].resample("W-FRI").last()
+    signal_week = wc.index[_signal_week_pos(wc.index)].date().isoformat()
 
     total_pl = account_value - config.CAPITAL
     return {
         "as_of": as_of,
+        "signal_week": signal_week,
         "account_value": round(account_value),
         "cash": round(cash),
         "invested": round(invested),
