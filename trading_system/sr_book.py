@@ -37,11 +37,18 @@ def _weeklies(ohlc):
 
 
 def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
-    """Names meeting the entry test on the latest completed week, not already held."""
+    """Names meeting the entry test on the latest completed week, not already held.
+
+    Entry test (matches backtest_sr_trailing.py): the week's LOW dipped to within
+    `support_touch` of the PRIOR `lookback_w`-week low (support, excluding the
+    current week via shift(1)), the week closed UP (close>open, the bounce), and
+    the close is above the `trend_sma_w` SMA (uptrend). The buy fills at the close,
+    so the close can sit above support after the bounce — that is expected.
+    """
     wc, wh, wl, wo = _weeklies(ohlc)
     if len(wc) < trend_sma_w + 2:
         return []
-    support = wl.rolling(lookback_w).min().iloc[-1]
+    support = wl.rolling(lookback_w).min().shift(1).iloc[-1]   # prior weeks only
     sma = wc.rolling(trend_sma_w).mean().iloc[-1]
     c, l, o = wc.iloc[-1], wl.iloc[-1], wo.iloc[-1]
     out = []
@@ -52,10 +59,14 @@ def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
         if any(pd.isna(v) for v in (sv, lo, cl, op, smv)) or sv <= 0:
             continue
         if lo <= sv * (1 + support_touch) and cl > op and cl > smv:
-            out.append({"ticker": t, "name": NAMES.get(t, t), "price": round(float(cl), 2),
+            out.append({"ticker": t, "name": NAMES.get(t, t),
+                        "price": round(float(cl), 2),          # entry ≈ last close
                         "support": round(float(sv), 2),
-                        "pct_above": round((cl - sv) / sv * 100, 1)})
-    out.sort(key=lambda x: x["pct_above"])
+                        "low": round(float(lo), 2),            # the low that touched support
+                        "low_vs_sup": round((lo / sv - 1) * 100, 1),
+                        "bounce_pct": round((cl - lo) / lo * 100, 1),  # how far it bounced
+                        "pct_above": round((cl - sv) / sv * 100, 1)})  # close vs support
+    out.sort(key=lambda x: x["low_vs_sup"])   # deepest touch of support first
     return out
 
 

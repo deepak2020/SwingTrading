@@ -555,7 +555,7 @@ PAGE = r"""
     {% endfor %}
     {% for a in d.sr.buy_signals %}
     <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · at support · price {{a.price}} · support {{a.support}} (+{{a.pct_above}}%)</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · dipped to {{a.low}} (support {{a.support}}) &amp; bounced +{{a.bounce_pct}}% · entry ≈ {{a.price}}</span></div>
     {% endfor %}
   </div>
   {% endif %}
@@ -628,23 +628,27 @@ PAGE = r"""
     the <strong>BUY</strong> signals above are where it would start.</div>
   {% endif %}
 
-  <h2>S/R watchlist <span class="sub">at support in an uptrend now</span></h2>
+  <h2>S/R watchlist <span class="sub">dipped to support &amp; bounced this week</span></h2>
   {% if d.sr.watch %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th></th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Week low</th><th>Support</th><th>Low vs support</th><th>Close</th><th>Bounce</th><th></th></tr></thead><tbody>
     {% for s in d.sr.watch %}
     <tr>
       <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
-      <td>{{s.price}}</td>
+      <td>{{s.low}}</td>
       <td>{{s.support}}</td>
-      <td class="pos">+{{s.pct_above}}%</td>
+      <td class="{{ 'pos' if s.low_vs_sup>=0 else 'neg' }}">{{ '+' if s.low_vs_sup>=0 else '' }}{{s.low_vs_sup}}%</td>
+      <td>{{s.price}}</td>
+      <td class="pos">+{{s.bounce_pct}}%</td>
       <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">buy now</span>{% else %}<span class="tag">full</span>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
-  <p class="sub" style="margin-top:8px">{{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}. Buy the closest-to-support names first.</p>
+  <p class="sub" style="margin-top:8px">The strategy buys when the week's <em>low</em> reaches support and the week
+    closes up (the bounce). Entry fills at the close, so the close sits above support — that's expected.
+    {{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}; deepest touch of support first.</p>
   {% else %}
-  <p class="sub">Nothing near support in an uptrend right now — no buys.</p>
+  <p class="sub">Nothing dipped to support and bounced this week — no buys.</p>
   {% endif %}
   {% endif %}
 
