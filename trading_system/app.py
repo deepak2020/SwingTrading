@@ -556,7 +556,8 @@ PAGE = r"""
     {% endfor %}
     {% for a in d.sr.buy_signals %}
     <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · dipped to {{a.low}} (support {{a.support}}) &amp; bounced +{{a.bounce_pct}}% · entry ≈ {{a.price}}</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · signal close {{a.price}} · now {{a.now}}
+      (<span class="{{ 'neg' if a.stale else '' }}">{{ '+' if a.moved_pct>=0 else '' }}{{a.moved_pct}}% since signal</span>){% if a.stale %} ⚠ ran away{% endif %}</span></div>
     {% endfor %}
   </div>
   {% endif %}
@@ -632,22 +633,22 @@ PAGE = r"""
   <h2>S/R watchlist <span class="sub">confirmed at Friday close {{d.sr.signal_week}} · buy Monday</span></h2>
   {% if d.sr.watch %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Week low</th><th>Support</th><th>Low vs support</th><th>Close</th><th>Bounce</th><th></th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Support</th><th>Low vs sup</th><th>Signal close</th><th>Now</th><th>Since signal</th><th></th></tr></thead><tbody>
     {% for s in d.sr.watch %}
     <tr>
       <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
-      <td>{{s.low}}</td>
       <td>{{s.support}}</td>
       <td class="{{ 'pos' if s.low_vs_sup>=0 else 'neg' }}">{{ '+' if s.low_vs_sup>=0 else '' }}{{s.low_vs_sup}}%</td>
       <td>{{s.price}}</td>
-      <td class="pos">+{{s.bounce_pct}}%</td>
+      <td>{{s.now}}</td>
+      <td class="{{ 'neg' if s.stale else '' }}">{{ '+' if s.moved_pct>=0 else '' }}{{s.moved_pct}}%{% if s.stale %} ⚠{% endif %}</td>
       <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">buy now</span>{% else %}<span class="tag">full</span>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
-  <p class="sub" style="margin-top:8px">The strategy buys when the week's <em>low</em> reaches support and the week
-    closes up (the bounce). Entry fills at the close, so the close sits above support — that's expected.
-    {{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}; deepest touch of support first.</p>
+  <p class="sub" style="margin-top:8px">Signal is the confirmed Friday close; “Now” is the live price. A weekend gap is
+    normally ~0.3% — if “Since signal” shows a big move (⚠ over 4%), the price ran away from the setup, so skip it.
+    {{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}.</p>
   {% else %}
   <p class="sub">Nothing dipped to support and bounced this week — no buys.</p>
   {% endif %}

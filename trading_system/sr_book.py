@@ -67,6 +67,7 @@ def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
     support = wl.rolling(lookback_w).min().shift(1).iloc[pos]   # prior weeks only
     sma = wc.rolling(trend_sma_w).mean().iloc[pos]
     c, l, o = wc.iloc[pos], wl.iloc[pos], wo.iloc[pos]
+    live = ohlc["close"].ffill().iloc[-1]                       # latest price, for drift check
     out = []
     for t in wc.columns:
         if t in held:
@@ -75,8 +76,13 @@ def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
         if any(pd.isna(v) for v in (sv, lo, cl, op, smv)) or sv <= 0:
             continue
         if lo <= sv * (1 + support_touch) and cl > op and cl > smv:
+            now = float(live.get(t)) if pd.notna(live.get(t)) else float(cl)
+            moved = (now / cl - 1) * 100 if cl else 0.0        # drift since the signal close
             out.append({"ticker": t, "name": NAMES.get(t, t),
-                        "price": round(float(cl), 2),          # entry ≈ last close
+                        "price": round(float(cl), 2),          # signal = the Friday close
+                        "now": round(now, 2),                  # live price today
+                        "moved_pct": round(moved, 1),          # how far it has drifted since
+                        "stale": abs(moved) > 4,               # ran away from the signal
                         "support": round(float(sv), 2),
                         "low": round(float(lo), 2),            # the low that touched support
                         "low_vs_sup": round((lo / sv - 1) * 100, 1),
