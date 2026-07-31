@@ -256,6 +256,7 @@ def build_snapshot(force=False):
         "signal": signal_list,
         "index": index_snapshot(),
         "equity_history": hist,
+        "sr_candidates": strategy.sr_signal(prices),
     }
 
 
@@ -494,6 +495,31 @@ PAGE = r"""
     </tr>
     {% endfor %}
     </tbody></table></div>
+
+  <h2>Trailing S/R watch <span class="sub">experimental · buy-the-dip candidates</span></h2>
+  <p class="sub" style="margin:-4px 0 10px">
+    Names dipping to their 12-week support while still above the 40-week trend (an
+    up week). This is the best strategy in our backtests
+    (<code>backtest_sr_trailing.py</code>) — buy the dip, exit on a 20% trailing
+    stop. Informational only; the live book above still runs momentum.
+    <em>Close-only approximation.</em></p>
+  {% if d.sr_candidates %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th>40w SMA</th><th></th></tr></thead><tbody>
+    {% for s in d.sr_candidates %}
+    <tr>
+      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
+      <td>{{ "%.2f"|format(s.price) }}</td>
+      <td>{{ "%.2f"|format(s.support) }}</td>
+      <td class="pos">+{{ "%.1f"|format(s.pct_above) }}%</td>
+      <td>{{ "%.2f"|format(s.sma40) }}</td>
+      <td><span class="tag buy">near support</span></td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="sub">No names near support in an uptrend this week — the strategy would hold cash / wait.</p>
+  {% endif %}
 
   <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during
     market hours (Mon–Fri 09:00–17:30 CET) · read-only dashboard, places no orders ·

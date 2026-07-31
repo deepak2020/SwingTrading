@@ -97,6 +97,49 @@ def latest_prices(prices):
     return prices.ffill().iloc[-1]
 
 
+def sr_signal(prices, lookback_w=12, support_touch=0.03, trend_sma_w=40):
+    """Experimental trailing support/resistance watch (see ../backtest_sr_trailing.py).
+
+    Close-only approximation of the backtest signal (the live feed has no OHLC):
+      * support   = rolling `lookback_w`-week low of the WEEKLY CLOSE
+      * near      = latest weekly close within `support_touch` of that support
+      * uptrend   = weekly close above its `trend_sma_w`-week SMA
+      * bullish   = this week's close above last week's (an "up week" proxy for a
+                    bullish candle, since we have no open/high/low)
+
+    Returns a list of candidate dicts sorted by proximity to support (closest
+    first) — i.e. the names this strategy would buy the dip on right now.
+    """
+    weekly = prices.resample("W-FRI").last().ffill(limit=2)
+    if len(weekly) < trend_sma_w + 2:
+        return []
+    support = weekly.rolling(lookback_w).min().iloc[-1]
+    sma = weekly.rolling(trend_sma_w).mean().iloc[-1]
+    last = weekly.iloc[-1]
+    prev = weekly.iloc[-2]
+
+    out = []
+    for tkr in weekly.columns:
+        s, c, m, p = support.get(tkr), last.get(tkr), sma.get(tkr), prev.get(tkr)
+        if any(pd.isna(v) for v in (s, c, m, p)) or s <= 0:
+            continue
+        dist = (c - s) / s                       # how far above support (fraction)
+        near = c <= s * (1 + support_touch)
+        uptrend = c > m
+        bullish = c > p
+        if near and uptrend and bullish:
+            out.append({
+                "ticker": tkr,
+                "name": NAMES.get(tkr, tkr),
+                "price": float(c),
+                "support": float(s),
+                "pct_above": float(dist * 100),
+                "sma40": float(m),
+            })
+    out.sort(key=lambda x: x["pct_above"])
+    return out
+
+
 def trailing_stops(state, prices):
     """Update peaks and return tickers whose trailing stop is breached.
 
