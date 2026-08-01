@@ -556,8 +556,8 @@ PAGE = r"""
     {% endfor %}
     {% for a in d.sr.buy_signals %}
     <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · signal close {{a.price}} · now {{a.now}}
-      (<span class="{{ 'neg' if a.stale else '' }}">{{ '+' if a.moved_pct>=0 else '' }}{{a.moved_pct}}% since signal</span>){% if a.stale %} ⚠ ran away{% endif %}</span></div>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · <strong>~{{ "{:,.0f}".format(a.alloc_sek) }} SEK (~{{a.sugg_shares}} sh)</strong>
+      · now {{a.now}} (<span class="{{ 'neg' if a.stale else '' }}">{{ '+' if a.moved_pct>=0 else '' }}{{a.moved_pct}}% since signal</span>){% if a.stale %} ⚠ ran away{% endif %}</span></div>
     {% endfor %}
   </div>
   {% endif %}
@@ -633,7 +633,7 @@ PAGE = r"""
   <h2>S/R watchlist <span class="sub">confirmed at Friday close {{d.sr.signal_week}} · buy Monday</span></h2>
   {% if d.sr.watch %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Support</th><th>Low vs sup</th><th>Signal close</th><th>Now</th><th>Since signal</th><th></th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Support</th><th>Low vs sup</th><th>Signal close</th><th>Now</th><th>Since signal</th><th>Buy ~</th><th></th></tr></thead><tbody>
     {% for s in d.sr.watch %}
     <tr>
       <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
@@ -642,13 +642,14 @@ PAGE = r"""
       <td>{{s.price}}</td>
       <td>{{s.now}}</td>
       <td class="{{ 'neg' if s.stale else '' }}">{{ '+' if s.moved_pct>=0 else '' }}{{s.moved_pct}}%{% if s.stale %} ⚠{% endif %}</td>
+      <td>{{s.sugg_shares}} sh<br><span class="sub">{{ "{:,.0f}".format(s.alloc_sek) }} SEK</span></td>
       <td>{% if loop.index0 < d.sr.free_slots %}<span class="tag buy">buy now</span>{% else %}<span class="tag">full</span>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody></table></div>
-  <p class="sub" style="margin-top:8px">Signal is the confirmed Friday close; “Now” is the live price. A weekend gap is
-    normally ~0.3% — if “Since signal” shows a big move (⚠ over 4%), the price ran away from the setup, so skip it.
-    {{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}.</p>
+  <p class="sub" style="margin-top:8px">“Buy ~” is 1/6 of your current S/R equity ({{ "{:,.0f}".format(d.sr.account_value) }} SEK ÷ {{d.sr.max_pos}}),
+    at the live price — this reinvests profit (compounding), matching the backtest. Signal is the confirmed Friday close;
+    a big “Since signal” move (⚠ over 4%) means the price ran away, so skip it. {{d.sr.free_slots}} free slot(s) of {{d.sr.max_pos}}.</p>
   {% else %}
   <p class="sub">Nothing dipped to support and bounced this week — no buys.</p>
   {% endif %}

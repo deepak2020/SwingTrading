@@ -181,6 +181,15 @@ def live_book(ohlc, state,
     watch = _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w)
     free_slots = max(max_pos - len(held), 0)
     buy_signals = watch[:free_slots]
+
+    # suggested size = 1/6 of CURRENT equity (matches the backtest's compounding).
+    # Capped at available cash so the suggestion is actually affordable.
+    target_sek = account_value / max_pos if max_pos else 0
+    for s in watch:                       # buy_signals references these same dicts
+        affordable = min(target_sek, cash)
+        s["alloc_sek"] = round(target_sek)
+        s["sugg_shares"] = int(affordable // s["now"]) if s.get("now") else 0
+
     wc = ohlc["close"].resample("W-FRI").last()
     signal_week = wc.index[_signal_week_pos(wc.index)].date().isoformat()
 
