@@ -653,6 +653,28 @@ PAGE = r"""
   {% else %}
   <p class="sub">Nothing dipped to support and bounced this week — no buys.</p>
   {% endif %}
+
+  <h2>Watch this week <span class="sub">approaching support · a dip could trigger a Friday buy</span></h2>
+  {% if d.sr.monitor %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th>Dip-to-buy</th><th></th></tr></thead><tbody>
+    {% for s in d.sr.monitor %}
+    <tr>
+      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
+      <td>{{s.price}}</td>
+      <td>{{s.support}}</td>
+      <td class="{{ 'pos' if s.pct_above<=8 else '' }}">+{{s.pct_above}}%</td>
+      <td>{{s.dip_to_buy}}</td>
+      <td>{% if s.at_support %}<span class="tag buy">at support ⚠ watch Fri close</span>{% elif s.pct_above<=8 %}<span class="tag">near</span>{% else %}<span class="tag">far</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  <p class="sub" style="margin-top:8px">Names in an uptrend hovering near support. A stock <strong>buys</strong> only if its
+    low dips to the “Dip-to-buy” level <em>and</em> it closes the week up (bullish) — confirmed at Friday's close.
+    “At support” names are at the decision point now; watch how they close Friday. Not yet buys.</p>
+  {% else %}
+  <p class="sub">Nothing near support in an uptrend right now — nothing to watch.</p>
+  {% endif %}
   {% endif %}
 
   <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during

@@ -92,6 +92,38 @@ def _watchlist(ohlc, held, lookback_w, support_touch, trend_sma_w):
     return out
 
 
+def _monitor(ohlc, held, exclude, lookback_w, support_touch, trend_sma_w, max_above=0.15):
+    """Pre-signal watchlist: names in an uptrend (above the 40-week SMA) hovering
+    within `max_above` of their support — the ones a dip this week could turn into
+    a Friday buy signal. Excludes held names and names already firing a signal.
+    Reported so you know what to monitor through the week before the Friday close."""
+    wc, wh, wl, wo = _weeklies(ohlc)
+    if len(wc) < trend_sma_w + 2:
+        return []
+    pos = _signal_week_pos(wc.index)
+    support = wl.rolling(lookback_w).min().shift(1).iloc[pos]
+    sma = wc.rolling(trend_sma_w).mean().iloc[pos]
+    live = ohlc["close"].ffill().iloc[-1]
+    out = []
+    for t in wc.columns:
+        if t in held or t in exclude:
+            continue
+        sv, smv, price = support.get(t), sma.get(t), live.get(t)
+        if any(pd.isna(v) for v in (sv, smv, price)) or sv <= 0:
+            continue
+        if price <= smv:                       # uptrend only (above 40-week SMA)
+            continue
+        above = price / sv - 1
+        if above > max_above:                  # too far above support to trigger this week
+            continue
+        out.append({"ticker": t, "name": NAMES.get(t, t), "price": round(float(price), 2),
+                    "support": round(float(sv), 2), "pct_above": round(above * 100, 1),
+                    "dip_to_buy": round(float(sv * (1 + support_touch)), 2),
+                    "at_support": above <= support_touch})
+    out.sort(key=lambda x: x["pct_above"])     # closest to support first
+    return out
+
+
 def _support_at(ohlc, ticker, since, lookback_w):
     """The support level (rolling low) as of the entry date, from history."""
     try:
@@ -190,6 +222,10 @@ def live_book(ohlc, state,
         s["alloc_sek"] = round(target_sek)
         s["sugg_shares"] = int(affordable // s["now"]) if s.get("now") else 0
 
+    # pre-signal watchlist to monitor through the week (uptrend, approaching support)
+    monitor = _monitor(ohlc, held, {w["ticker"] for w in watch},
+                       lookback_w, support_touch, trend_sma_w)
+
     wc = ohlc["close"].resample("W-FRI").last()
     signal_week = wc.index[_signal_week_pos(wc.index)].date().isoformat()
 
@@ -209,4 +245,5 @@ def live_book(ohlc, state,
         "sell_signals": sell_signals,
         "buy_signals": buy_signals,
         "watch": watch,
+        "monitor": monitor,
     }
