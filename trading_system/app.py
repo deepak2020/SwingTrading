@@ -163,7 +163,19 @@ def build_snapshot(force=False):
     invested = 0.0
     for tkr, pos in state["positions"].items():
         now = float(px.get(tkr, pos["entry"]))
+        # Peak = highest close since entry (derived live), so the trailing stop
+        # ratchets up as the stock rises. The stored peak alone goes stale because
+        # nothing bumps it between CLI runs.
         peak = float(pos.get("peak", pos["entry"]))
+        since = pos.get("since")
+        try:
+            if since and tkr in prices.columns:
+                hist_peak = prices[tkr].loc[since:].max()
+                if pd.notna(hist_peak):
+                    peak = max(peak, float(hist_peak))
+        except Exception:
+            pass
+        peak = max(peak, now, float(pos["entry"]))
         prev = float(prev_px.get(tkr, now))
         value = pos["shares"] * now
         invested += value
