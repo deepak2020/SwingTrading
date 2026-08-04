@@ -229,16 +229,20 @@ def live_book(ohlc, state,
     wc = ohlc["close"].resample("W-FRI").last()
     signal_week = wc.index[_signal_week_pos(wc.index)].date().isoformat()
 
-    total_pl = account_value - config.CAPITAL
+    # P/L is measured against NET CONTRIBUTIONS (what you actually put in), not a
+    # fixed 100k — so SIP top-ups (recorded via "Set cash") don't count as profit.
+    deposited = float(state.get("deposited", config.CAPITAL))
+    total_pl = account_value - deposited
     return {
         "as_of": as_of,
         "signal_week": signal_week,
         "account_value": round(account_value),
         "cash": round(cash),
+        "deposited": round(deposited),
         "invested": round(invested),
         "exposure_pct": round(invested / account_value * 100, 1) if account_value else 0.0,
         "total_pl": round(total_pl),
-        "total_pl_pct": round(total_pl / config.CAPITAL * 100, 1),
+        "total_pl_pct": round(total_pl / deposited * 100, 1) if deposited else 0.0,
         "n_positions": len(rows), "max_pos": max_pos, "free_slots": free_slots,
         "trail_pct": int(trail * 100),
         "positions": rows,

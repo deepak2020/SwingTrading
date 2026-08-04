@@ -534,10 +534,11 @@ PAGE = r"""
   <div class="cards">
     <div class="card"><div class="label">S/R value</div>
       <div class="val">{{ "{:,.0f}".format(d.sr.account_value) }} <span class="sub">SEK</span></div></div>
-    <div class="card"><div class="label">S/R P/L</div>
+    <div class="card"><div class="label">S/R P/L <span class="sub">net</span></div>
       <div class="val {{ 'pos' if d.sr.total_pl>=0 else 'neg' }}">
         {{ '+' if d.sr.total_pl>=0 else '' }}{{ "{:,.0f}".format(d.sr.total_pl) }}
-        <span class="sub">({{ '+' if d.sr.total_pl_pct>=0 else '' }}{{d.sr.total_pl_pct}}%)</span></div></div>
+        <span class="sub">({{ '+' if d.sr.total_pl_pct>=0 else '' }}{{d.sr.total_pl_pct}}%)</span></div>
+      <div class="sub">on {{ "{:,.0f}".format(d.sr.deposited) }} put in · after fees</div></div>
     <div class="card"><div class="label">S/R cash</div>
       <div class="val">{{ "{:,.0f}".format(d.sr.cash) }}</div></div>
     <div class="card"><div class="label">S/R exposure</div>
@@ -600,11 +601,14 @@ PAGE = r"""
     </form>
   </div>
   <div class="editcard">
-    <div class="ename">S/R cash</div>
+    <div class="ename">S/R cash <span class="sub">deposit / withdraw</span></div>
     <form class="frow" method="post" action="/sr/cash">
       <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.sr.cash) }}" step="0.01" inputmode="decimal"></label>
       <button>Set cash</button>
     </form>
+    <p class="hint" style="margin:8px 0 0">Changing cash is treated as a deposit or withdrawal (e.g. your monthly SIP) —
+      the P/L baseline moves with it, so contributions don't show up as profit. Currently measured against
+      {{ "{:,.0f}".format(d.sr.deposited) }} SEK put in.</p>
   </div>
   {% elif d.sr.positions %}
   <div class="tablescroll"><table>
@@ -868,7 +872,12 @@ def sr_position_sell():
 def sr_set_cash():
     try:
         state = engine.load_state("sr")
-        state["cash"] = float(request.form["cash"])
+        new_cash = float(request.form["cash"])
+        old_cash = float(state.get("cash", config.CAPITAL))
+        # A cash change is a deposit/withdrawal (e.g. your monthly SIP), not profit:
+        # move the P/L baseline by the same delta so contributions don't show as gains.
+        state["deposited"] = float(state.get("deposited", config.CAPITAL)) + (new_cash - old_cash)
+        state["cash"] = new_cash
         engine.save_state(state, "sr")
     except (KeyError, ValueError):
         pass
