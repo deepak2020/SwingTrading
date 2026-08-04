@@ -1,0 +1,338 @@
+date,action,ticker,name,shares,price,value,fee,reason,cash_after,portfolio_value
+2010-10-29,SIP,,monthly deposit,,,25000.0,0,contribution,125000,125000
+2010-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,150000,150000
+2010-11-26,BUY,HM-B.ST,H&M,199,125.56,24986.0,39,dip to support,124975,149961
+2010-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,149975,175320
+2011-01-03,SIP,,monthly deposit,,,25000.0,0,contribution,174975,199022
+2011-01-07,BUY,TELIA.ST,Telia,1585,20.86,33071.0,50,dip to support,141855,198445
+2011-01-07,BUY,TEL2-B.ST,Tele2,873,37.86,33056.0,50,dip to support,108749,198395
+2011-01-31,SELL,HM-B.ST,H&M,199,112.19,22327.0,39,"support broke (entry 125.56, P/L -10.6%)",131037,196082
+2011-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,156037,221785
+2011-02-04,BUY,ASSA-B.ST,Assa Abloy,812,45.65,37068.0,56,dip to support,118914,222586
+2011-02-04,BUY,ATCO-A.ST,Atlas Copco,1853,20.02,37089.0,56,dip to support,81769,222531
+2011-02-25,BUY,SHB-A.ST,Handelsbanken,1474,24.93,36754.0,55,dip to support,44960,220526
+2011-02-25,BUY,SAND.ST,Sandvik,494,74.36,36735.0,55,dip to support,8170,220471
+2011-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,33170,245618
+2011-03-15,SELL,ASSA-B.ST,Assa Abloy,812,42.91,34841.0,52,"support broke (entry 45.65, P/L -6.0%)",67958,235588
+2011-03-16,SELL,TEL2-B.ST,Tele2,873,34.14,29807.0,45,"support broke (entry 37.86, P/L -9.8%)",97721,233839
+2011-03-18,BUY,ABB.ST,ABB,298,133.03,39642.0,59,dip to support,58020,238336
+2011-03-18,BUY,VOLV-B.ST,Volvo,787,50.47,39722.0,60,dip to support,18238,238276
+2011-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,43238,276098
+2011-04-21,SELL,TELIA.ST,Telia,1585,19.61,31077.0,47,"support broke (entry 20.86, P/L -6.0%)",74269,277006
+2011-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,99269,306733
+2011-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,124269,326775
+2011-06-17,BUY,ADDT-B.ST,Addtech,5282,9.91,52321.0,78,dip to support,71870,313895
+2011-06-20,SELL,SAND.ST,Sandvik,494,67.33,33261.0,50,"support broke (entry 74.36, P/L -9.5%)",105081,310604
+2011-06-23,SELL,SHB-A.ST,Handelsbanken,1474,22.83,33652.0,50,"support broke (entry 24.93, P/L -8.4%)",138682,308952
+2011-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,163682,342960
+2011-07-01,BUY,INVE-B.ST,Investor,2284,25.02,57151.0,86,dip to support,106446,342874
+2011-07-01,BUY,SWED-A.ST,Swedbank,1441,39.64,57122.0,86,dip to support,49238,342788
+2011-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,74238,347409
+2011-08-02,SELL,ATCO-A.ST,Atlas Copco,1853,17.61,32636.0,49,"trailing stop (entry 20.02, P/L -12.0%)",106825,337342
+2011-08-02,SELL,VOLV-B.ST,Volvo,787,45.51,35820.0,54,"trailing stop (entry 50.47, P/L -9.8%)",142591,337288
+2011-08-02,SELL,ADDT-B.ST,Addtech,5282,9.19,48563.0,73,"support broke (entry 9.91, P/L -7.2%)",191081,337215
+2011-08-02,SELL,INVE-B.ST,Investor,2284,22.02,50284.0,75,"support broke (entry 25.02, P/L -12.0%)",241289,337140
+2011-08-04,SELL,SWED-A.ST,Swedbank,1441,34.69,49988.0,75,"support broke (entry 39.64, P/L -12.5%)",291203,329369
+2011-08-08,SELL,ABB.ST,ABB,298,119.7,35671.0,54,"trailing stop (entry 133.03, P/L -10.0%)",326820,326820
+2011-08-12,BUY,TEL2-B.ST,Tele2,1385,39.3,54432.0,82,dip to support,272306,326739
+2011-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,297306,356512
+2011-10-03,SIP,,monthly deposit,,,25000.0,0,contribution,322306,376607
+2011-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,347306,405023
+2011-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,372306,430461
+2012-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,397306,455767
+2012-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,422306,480198
+2012-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,447306,506205
+2012-03-30,BUY,TELIA.ST,Telia,4472,18.87,84391.0,127,dip to support,362789,506298
+2012-03-30,BUY,ALFA.ST,Alfa Laval,841,100.3,84352.0,127,dip to support,278310,506171
+2012-04-02,SIP,,monthly deposit,,,25000.0,0,contribution,303310,534573
+2012-04-13,BUY,SAND.ST,Sandvik,1504,58.43,87882.0,132,dip to support,215297,527463
+2012-04-13,BUY,BOL.ST,Boliden,1440,61.04,87901.0,132,dip to support,127263,527331
+2012-04-13,BUY,SKA-B.ST,Skanska,1448,60.71,87915.0,132,dip to support,39216,527199
+2012-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,64216,572591
+2012-05-14,SELL,SKA-B.ST,Skanska,1448,56.56,81897.0,123,"support broke (entry 60.71, P/L -6.8%)",145991,553531
+2012-05-18,SELL,BOL.ST,Boliden,1440,56.76,81738.0,123,"support broke (entry 61.04, P/L -7.0%)",227606,532805
+2012-05-25,BUY,ADDT-B.ST,Addtech,8706,10.29,89589.0,134,dip to support,137883,537434
+2012-05-25,BUY,HM-B.ST,H&M,712,125.83,89592.0,134,dip to support,48157,537300
+2012-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,73157,544560
+2012-06-01,SELL,ALFA.ST,Alfa Laval,841,87.76,73810.0,111,"support broke (entry 100.30, P/L -12.5%)",146857,544449
+2012-06-08,BUY,HEXA-B.ST,Hexagon,5322,17.15,91279.0,137,dip to support,55441,547607
+2012-06-26,SELL,SAND.ST,Sandvik,1504,54.95,82650.0,124,"support broke (entry 58.43, P/L -6.0%)",137967,537181
+2012-06-26,SELL,HEXA-B.ST,Hexagon,5322,15.35,81697.0,123,"support broke (entry 17.15, P/L -10.5%)",219542,537059
+2012-06-27,SELL,ADDT-B.ST,Addtech,8706,9.51,82813.0,124,"support broke (entry 10.29, P/L -7.6%)",302231,538676
+2012-06-29,BUY,ADDT-B.ST,Addtech,9216,9.8,90321.0,135,dip to support,211775,541801
+2012-06-29,BUY,SCA-B.ST,SCA,9321,9.69,90315.0,135,dip to support,121324,541666
+2012-06-29,BUY,INVE-B.ST,Investor,3866,23.36,90301.0,135,dip to support,30888,541530
+2012-07-02,SIP,,monthly deposit,,,25000.0,0,contribution,55888,567224
+2012-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,80888,618742
+2012-09-03,SIP,,monthly deposit,,,25000.0,0,contribution,105888,650560
+2012-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,130888,681902
+2012-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,155888,696170
+2012-12-03,SIP,,monthly deposit,,,25000.0,0,contribution,180888,737855
+2013-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,205888,790242
+2013-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,230888,840559
+2013-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,255888,875697
+2013-04-02,SIP,,monthly deposit,,,25000.0,0,contribution,280888,926458
+2013-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,305888,978794
+2013-05-16,SELL,TEL2-B.ST,Tele2,1385,31.25,43282.0,65,"trailing stop (entry 39.30, P/L -20.5%)",349105,996746
+2013-06-03,SIP,,monthly deposit,,,25000.0,0,contribution,374105,998147
+2013-06-14,BUY,ALFA.ST,Alfa Laval,1542,106.84,164746.0,247,dip to support,209112,988731
+2013-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,234112,1015523
+2013-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,259112,1105515
+2013-09-02,SIP,,monthly deposit,,,25000.0,0,contribution,284112,1121264
+2013-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,309112,1187513
+2013-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,334112,1245317
+2013-12-02,SIP,,monthly deposit,,,25000.0,0,contribution,359112,1293901
+2014-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,384112,1347852
+2014-02-03,SIP,,monthly deposit,,,25000.0,0,contribution,409112,1321737
+2014-03-03,SIP,,monthly deposit,,,25000.0,0,contribution,434112,1375533
+2014-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,459112,1429080
+2014-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,484112,1475377
+2014-06-02,SIP,,monthly deposit,,,25000.0,0,contribution,509112,1568235
+2014-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,534112,1590729
+2014-07-21,SELL,ADDT-B.ST,Addtech,9216,18.76,172920.0,259,"trailing stop (entry 9.80, P/L +91.5%)",706772,1536897
+2014-07-25,BUY,SAND.ST,Sandvik,4016,63.71,255857.0,384,dip to support,450532,1535052
+2014-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,475532,1528651
+2014-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,500532,1576106
+2014-09-24,SELL,SAND.ST,Sandvik,4016,58.21,233753.0,351,"support broke (entry 63.71, P/L -8.6%)",733934,1556770
+2014-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,758934,1568290
+2014-10-17,BUY,ERIC-B.ST,Ericsson,4292,59.35,254712.0,382,dip to support,503840,1528098
+2014-11-03,SIP,,monthly deposit,,,25000.0,0,contribution,528840,1605001
+2014-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,553840,1685136
+2014-12-11,SELL,ALFA.ST,Alfa Laval,1542,112.33,173212.0,260,"trailing stop (entry 106.84, P/L +5.1%)",726792,1673691
+2015-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,751792,1702476
+2015-01-23,BUY,SWED-A.ST,Swedbank,3448,85.09,293384.0,440,dip to support,457968,1760208
+2015-02-02,SIP,,monthly deposit,,,25000.0,0,contribution,482968,1822307
+2015-03-02,SIP,,monthly deposit,,,25000.0,0,contribution,507968,1929183
+2015-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,532968,1958016
+2015-05-04,SIP,,monthly deposit,,,25000.0,0,contribution,557968,1969613
+2015-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,582968,2029390
+2015-06-29,SELL,ERIC-B.ST,Ericsson,4292,65.01,279008.0,419,"trailing stop (entry 59.35, P/L +9.5%)",861557,1951402
+2015-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,886557,1986958
+2015-07-03,BUY,BOL.ST,Boliden,3170,103.87,329282.0,494,dip to support,556781,1975616
+2015-07-07,SELL,BOL.ST,Boliden,3170,98.06,310836.0,466,"support broke (entry 103.87, P/L -5.6%)",867151,1934504
+2015-07-10,BUY,ABB.ST,ABB,2060,161.06,331775.0,498,dip to support,534878,1990769
+2015-08-03,SIP,,monthly deposit,,,25000.0,0,contribution,559878,2076891
+2015-08-21,SELL,ABB.ST,ABB,2060,149.66,308295.0,462,"support broke (entry 161.06, P/L -7.1%)",867711,1971138
+2015-08-28,BUY,ASSA-B.ST,Assa Abloy,2475,134.15,332013.0,498,dip to support,535200,1992360
+2015-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,560200,1980899
+2015-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,585200,1935044
+2015-10-15,SELL,TELIA.ST,Telia,4472,21.98,98311.0,147,"trailing stop (entry 18.87, P/L +16.5%)",683364,1973483
+2015-10-23,BUY,ADDT-B.ST,Addtech,13883,24.62,341762.0,513,dip to support,341089,2050176
+2015-11-02,SIP,,monthly deposit,,,25000.0,0,contribution,366089,2094356
+2015-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,391089,2196270
+2016-01-04,SIP,,monthly deposit,,,25000.0,0,contribution,416089,2124205
+2016-01-04,SELL,HM-B.ST,H&M,712,183.44,130611.0,196,"trailing stop (entry 125.83, P/L +45.8%)",546503,2124009
+2016-01-20,SELL,INVE-B.ST,Investor,3866,53.6,207209.0,311,"trailing stop (entry 23.36, P/L +129.5%)",753402,2000288
+2016-01-20,SELL,SWED-A.ST,Swedbank,3448,77.51,267254.0,401,"trailing stop (entry 85.09, P/L -8.9%)",1020254,1999887
+2016-01-22,BUY,SAAB-B.ST,SAAB,6513,51.76,337086.0,506,dip to support,682663,2022118
+2016-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,707663,2084316
+2016-02-09,SELL,ADDT-B.ST,Addtech,13883,22.37,310630.0,466,"trailing stop (entry 24.62, P/L -9.1%)",1017827,1945884
+2016-02-11,SELL,ASSA-B.ST,Assa Abloy,2475,123.65,306029.0,459,"trailing stop (entry 134.15, P/L -7.8%)",1323397,1955842
+2016-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,1348397,2064306
+2016-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,1373397,2072150
+2016-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,1398397,2143365
+2016-05-27,BUY,EVO.ST,Evolution,6446,56.2,362260.0,543,dip to support,1035594,2173133
+2016-05-27,BUY,INVE-B.ST,Investor,6105,59.33,362222.0,543,dip to support,672828,2172590
+2016-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,697828,2182393
+2016-06-16,SELL,EVO.ST,Evolution,6446,47.22,304399.0,457,"support broke (entry 56.20, P/L -16.0%)",1001770,2051260
+2016-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,1026770,2154774
+2016-07-01,BUY,HEXA-B.ST,Hexagon,8261,43.47,359107.0,539,dip to support,667125,2154236
+2016-07-01,BUY,NIBE-B.ST,NIBE,23045,15.58,359125.0,539,dip to support,307461,2153697
+2016-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,332461,2218496
+2016-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,357461,2310519
+2016-10-03,SIP,,monthly deposit,,,25000.0,0,contribution,382461,2382579
+2016-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,407461,2315909
+2016-11-08,SELL,HEXA-B.ST,Hexagon,8261,42.49,351024.0,527,"trailing stop (entry 43.47, P/L -2.3%)",757958,2288032
+2016-11-11,BUY,ALFA.ST,Alfa Laval,3478,110.13,383032.0,575,dip to support,374352,2298275
+2016-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,399352,2368271
+2017-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,424352,2531791
+2017-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,449352,2610300
+2017-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,474352,2707226
+2017-03-03,BUY,SKA-B.ST,Skanska,3094,144.31,446504.0,670,dip to support,27178,2678705
+2017-04-03,SIP,,monthly deposit,,,25000.0,0,contribution,52178,2752684
+2017-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,77178,3101638
+2017-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,102178,3138397
+2017-07-03,SIP,,monthly deposit,,,25000.0,0,contribution,127178,3143960
+2017-07-21,SELL,SKA-B.ST,Skanska,3094,131.46,406751.0,610,"support broke (entry 144.31, P/L -8.9%)",533319,3077577
+2017-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,558319,3085921
+2017-08-04,BUY,SAND.ST,Sandvik,5149,100.96,519842.0,780,dip to support,37697,3118739
+2017-08-18,SELL,SAAB-B.ST,SAAB,6513,76.43,497797.0,747,"trailing stop (entry 51.76, P/L +47.7%)",534748,2998529
+2017-08-18,SELL,NIBE-B.ST,NIBE,23045,16.43,378715.0,568,"trailing stop (entry 15.58, P/L +5.5%)",912895,2997961
+2017-08-18,BUY,SEB-A.ST,SEB,8312,60.11,499631.0,749,dip to support,412514,2997212
+2017-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,437514,3034273
+2017-10-02,SIP,,monthly deposit,,,25000.0,0,contribution,462514,3224908
+2017-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,487514,3413843
+2017-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,512514,3292025
+2018-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,537514,3330575
+2018-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,562514,3465529
+2018-02-06,SELL,SEB-A.ST,SEB,8312,55.03,457449.0,686,"support broke (entry 60.11, P/L -8.4%)",1019277,3270021
+2018-02-16,BUY,TELIA.ST,Telia,24606,22.44,552171.0,828,dip to support,466278,3312253
+2018-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,491278,3378703
+2018-04-03,SIP,,monthly deposit,,,25000.0,0,contribution,516278,3469387
+2018-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,541278,3800552
+2018-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,566278,3829977
+2018-07-02,SIP,,monthly deposit,,,25000.0,0,contribution,591278,3748489
+2018-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,616278,3912240
+2018-09-03,SIP,,monthly deposit,,,25000.0,0,contribution,641278,4077641
+2018-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,666278,4033335
+2018-10-19,BUY,TEL2-B.ST,Tele2,10074,62.31,627702.0,942,dip to support,37634,3765302
+2018-10-23,SELL,SCA-B.ST,SCA,9321,74.08,690487.0,1036,"trailing stop (entry 9.69, P/L +664.5%)",727085,3661748
+2018-10-26,BUY,SEB-A.ST,SEB,10471,58.26,610040.0,915,dip to support,116131,3659605
+2018-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,141131,3784538
+2018-11-12,SELL,TEL2-B.ST,Tele2,10074,56.09,565016.0,848,"support broke (entry 62.31, P/L -10.0%)",705299,3713681
+2018-11-16,BUY,NIBE-B.ST,NIBE,26807,22.63,606770.0,910,dip to support,97619,3639824
+2018-11-19,SELL,ALFA.ST,Alfa Laval,3478,173.31,602772.0,904,"trailing stop (entry 110.13, P/L +57.4%)",699487,3607693
+2018-11-20,SELL,SAND.ST,Sandvik,5149,105.37,542558.0,814,"trailing stop (entry 100.96, P/L +4.4%)",1241231,3535943
+2018-12-03,SIP,,monthly deposit,,,25000.0,0,contribution,1266231,3673416
+2018-12-07,BUY,ERIC-B.ST,Ericsson,9409,63.48,597254.0,896,dip to support,668081,3582689
+2018-12-14,BUY,SHB-A.ST,Handelsbanken,11337,53.7,608836.0,913,dip to support,58331,3652304
+2018-12-27,SELL,SEB-A.ST,SEB,10471,53.29,557965.0,837,"support broke (entry 58.26, P/L -8.5%)",615459,3435220
+2019-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,640459,3528392
+2019-01-04,BUY,SWED-A.ST,Swedbank,5168,114.97,594174.0,891,dip to support,45393,3564336
+2019-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,70393,3651966
+2019-02-21,SELL,SWED-A.ST,Swedbank,5168,93.2,481672.0,723,"trailing stop (entry 114.97, P/L -18.9%)",551343,3708046
+2019-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,576343,3739034
+2019-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,601343,3862513
+2019-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,626343,4025509
+2019-06-03,SIP,,monthly deposit,,,25000.0,0,contribution,651343,3881369
+2019-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,676343,4098754
+2019-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,701343,4110954
+2019-08-13,SELL,SHB-A.ST,Handelsbanken,11337,46.63,528683.0,793,"trailing stop (entry 53.70, P/L -13.2%)",1229233,3956571
+2019-08-23,BUY,EVO.ST,Evolution,3645,176.16,642093.0,963,dip to support,586177,3851878
+2019-08-28,SELL,ERIC-B.ST,Ericsson,9409,60.69,571073.0,857,"trailing stop (entry 63.48, P/L -4.4%)",1156394,3840626
+2019-08-30,BUY,VOLV-B.ST,Volvo,7352,88.53,650876.0,976,dip to support,504541,3904612
+2019-09-02,SIP,,monthly deposit,,,25000.0,0,contribution,529541,3939418
+2019-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,554541,4027423
+2019-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,579541,4322011
+2019-12-02,SIP,,monthly deposit,,,25000.0,0,contribution,604541,4497266
+2020-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,629541,4885392
+2020-02-03,SIP,,monthly deposit,,,25000.0,0,contribution,654541,4995278
+2020-03-02,SIP,,monthly deposit,,,25000.0,0,contribution,679541,5001643
+2020-03-09,SELL,VOLV-B.ST,Volvo,7352,85.49,628540.0,943,"trailing stop (entry 88.53, P/L -3.4%)",1307138,4781321
+2020-03-11,SELL,NIBE-B.ST,NIBE,26807,34.09,913972.0,1371,"trailing stop (entry 22.63, P/L +50.6%)",2219739,4650370
+2020-03-12,SELL,INVE-B.ST,Investor,6105,88.31,539137.0,809,"trailing stop (entry 59.33, P/L +48.8%)",2758067,4420987
+2020-03-12,SELL,TELIA.ST,Telia,24606,20.67,508595.0,763,"trailing stop (entry 22.44, P/L -7.9%)",3265899,4420224
+2020-03-12,SELL,EVO.ST,Evolution,3645,316.69,1154325.0,1731,"trailing stop (entry 176.16, P/L +79.8%)",4418492,4418492
+2020-03-20,BUY,EVO.ST,Evolution,2231,330.05,736336.0,1105,dip to support,3681052,4417388
+2020-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,3706052,4452986
+2020-05-04,SIP,,monthly deposit,,,25000.0,0,contribution,3731052,4723725
+2020-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,3756052,5019856
+2020-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,3781052,5128890
+2020-07-17,BUY,AZN.ST,AstraZeneca,849,1038.62,881785.0,1323,dip to support,2897945,5291076
+2020-08-03,SIP,,monthly deposit,,,25000.0,0,contribution,2922945,5177222
+2020-08-14,BUY,SCA-B.ST,SCA,8599,98.34,845592.0,1268,dip to support,2076084,5072337
+2020-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,2101084,5213591
+2020-09-25,BUY,EQT.ST,EQT,5509,156.29,860995.0,1291,dip to support,1238797,5164852
+2020-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,1263797,5322658
+2020-10-23,BUY,LIFCO-B.ST,Lifco,7212,124.79,899991.0,1350,dip to support,362456,5399117
+2020-10-28,SELL,AZN.ST,AstraZeneca,849,897.15,761678.0,1143,"support broke (entry 1038.62, P/L -13.6%)",1122992,5193821
+2020-11-02,SIP,,monthly deposit,,,25000.0,0,contribution,1147992,5292431
+2020-11-06,BUY,SAND.ST,Sandvik,6863,136.11,934134.0,1401,dip to support,212456,5603410
+2020-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,237456,5952348
+2021-01-04,SIP,,monthly deposit,,,25000.0,0,contribution,262456,6495918
+2021-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,287456,7029458
+2021-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,312456,7553417
+2021-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,337456,8339480
+2021-05-03,SIP,,monthly deposit,,,25000.0,0,contribution,362456,9197457
+2021-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,387456,9170027
+2021-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,412456,8908474
+2021-08-02,SIP,,monthly deposit,,,25000.0,0,contribution,437456,10282456
+2021-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,462456,10088350
+2021-09-27,SELL,EQT.ST,EQT,5509,343.66,1893224.0,2840,"trailing stop (entry 156.29, P/L +119.9%)",2352840,9360879
+2021-09-30,SELL,EVO.ST,Evolution,2231,1322.42,2950316.0,4425,"trailing stop (entry 330.05, P/L +300.7%)",5298731,9160331
+2021-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,5323731,9157346
+2021-10-01,BUY,SHB-A.ST,Handelsbanken,26872,56.8,1526218.0,2289,dip to support,3795223,9155056
+2021-10-08,BUY,ABB.ST,ABB,5614,274.29,1539879.0,2310,dip to support,2253034,9237453
+2021-10-08,BUY,ATCO-A.ST,Atlas Copco,12588,122.34,1539956.0,2310,dip to support,710768,9235143
+2021-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,735768,9554064
+2021-11-05,SELL,SCA-B.ST,SCA,8599,120.32,1034620.0,1552,"trailing stop (entry 98.34, P/L +22.4%)",1768836,9679040
+2021-11-05,BUY,SAAB-B.ST,SAAB,27270,59.15,1613151.0,2420,dip to support,153265,9676620
+2021-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,178265,9702617
+2021-12-06,SELL,SAAB-B.ST,SAAB,27270,53.49,1458547.0,2188,"support broke (entry 59.15, P/L -9.6%)",1634624,9656868
+2021-12-17,BUY,AZN.ST,AstraZeneca,1578,1025.86,1618815.0,2428,dip to support,13381,9716469
+2022-01-03,SIP,,monthly deposit,,,25000.0,0,contribution,38381,10352277
+2022-01-14,SELL,LIFCO-B.ST,Lifco,7212,205.29,1480572.0,2221,"trailing stop (entry 124.79, P/L +64.5%)",1516732,9732919
+2022-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,1541732,9595602
+2022-02-11,SELL,ATCO-A.ST,Atlas Copco,12588,117.73,1481991.0,2223,"trailing stop (entry 122.34, P/L -3.8%)",3021501,9407081
+2022-02-11,BUY,SWED-A.ST,Swedbank,13374,117.22,1567744.0,2352,dip to support,1451406,9404729
+2022-02-24,SELL,SWED-A.ST,Swedbank,13374,104.66,1399725.0,2100,"support broke (entry 117.22, P/L -10.7%)",2849031,8884032
+2022-02-25,BUY,SAAB-B.ST,SAAB,25797,58.46,1507968.0,2262,dip to support,1338801,9045756
+2022-02-28,SELL,SAND.ST,Sandvik,6863,174.82,1199816.0,1800,"trailing stop (entry 136.11, P/L +28.4%)",2536818,9292147
+2022-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,2561818,9360505
+2022-03-11,BUY,SCA-B.ST,SCA,10577,153.83,1627093.0,2441,dip to support,932284,9760825
+2022-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,957284,9923325
+2022-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,982284,10738846
+2022-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,1007284,10698945
+2022-06-14,SELL,ABB.ST,ABB,5614,267.69,1502839.0,2254,"trailing stop (entry 274.29, P/L -2.4%)",2507869,10086055
+2022-06-14,SELL,SCA-B.ST,SCA,10577,148.03,1565735.0,2349,"trailing stop (entry 153.83, P/L -3.8%)",4071255,10083706
+2022-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,4096255,10333592
+2022-07-01,BUY,TEL2-B.ST,Tele2,18581,92.69,1722215.0,2583,dip to support,2371457,10331008
+2022-07-29,BUY,TELIA.ST,Telia,57853,28.96,1675411.0,2513,dip to support,693533,10050123
+2022-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,718533,10122752
+2022-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,743533,9795337
+2022-09-01,SELL,SAAB-B.ST,SAAB,25797,83.67,2158330.0,3237,"trailing stop (entry 58.46, P/L +43.1%)",2898625,9792100
+2022-09-08,SELL,TEL2-B.ST,Tele2,18581,82.52,1533359.0,2300,"support broke (entry 92.69, P/L -11.0%)",4429684,9543190
+2022-09-09,BUY,SAAB-B.ST,SAAB,18332,86.9,1592979.0,2389,dip to support,2834316,9555774
+2022-09-20,SELL,TELIA.ST,Telia,57853,26.37,1525621.0,2288,"support broke (entry 28.96, P/L -8.9%)",4357648,9440063
+2022-10-03,SIP,,monthly deposit,,,25000.0,0,contribution,4382648,9441540
+2022-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,4407648,9998849
+2022-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,4432648,10231766
+2023-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,4457648,10384962
+2023-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,4482648,10364952
+2023-02-03,BUY,ATCO-A.ST,Atlas Copco,14234,122.25,1740138.0,2610,dip to support,2739900,10438649
+2023-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,2764900,11124970
+2023-03-24,BUY,SWED-A.ST,Swedbank,14287,127.65,1823697.0,2736,dip to support,938467,10940085
+2023-04-03,SIP,,monthly deposit,,,25000.0,0,contribution,963467,11349766
+2023-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,988467,11523449
+2023-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,1013467,11835118
+2023-07-03,SIP,,monthly deposit,,,25000.0,0,contribution,1038467,11763396
+2023-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,1063467,11833138
+2023-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,1088467,11881986
+2023-10-02,SIP,,monthly deposit,,,25000.0,0,contribution,1113467,11962362
+2023-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,1138467,11732390
+2023-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,1163467,11987091
+2024-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,1188467,12797483
+2024-02-01,SIP,,monthly deposit,,,25000.0,0,contribution,1213467,13155962
+2024-02-12,SELL,AZN.ST,AstraZeneca,1578,1262.85,1992784.0,2989,"trailing stop (entry 1025.86, P/L +23.1%)",3203262,13604984
+2024-02-16,BUY,TEL2-B.ST,Tele2,31775,72.83,2314326.0,3471,dip to support,885464,13882826
+2024-03-01,SIP,,monthly deposit,,,25000.0,0,contribution,910464,14337975
+2024-04-02,SIP,,monthly deposit,,,25000.0,0,contribution,935464,14869567
+2024-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,960464,14887107
+2024-06-03,SIP,,monthly deposit,,,25000.0,0,contribution,985464,16061173
+2024-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,1010464,16207470
+2024-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,1035464,15903205
+2024-09-02,SIP,,monthly deposit,,,25000.0,0,contribution,1060464,15958573
+2024-09-24,SELL,SAAB-B.ST,SAAB,18332,208.4,3820431.0,5731,"trailing stop (entry 86.90, P/L +139.8%)",4875165,15621923
+2024-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,4900165,15493809
+2024-10-04,BUY,AZN.ST,AstraZeneca,1608,1594.61,2564127.0,3846,dip to support,2332192,15381644
+2024-11-01,SIP,,monthly deposit,,,25000.0,0,contribution,2357192,15469985
+2024-11-05,SELL,AZN.ST,AstraZeneca,1608,1408.56,2264966.0,3397,"support broke (entry 1594.61, P/L -11.7%)",4618760,15380140
+2024-11-15,BUY,ESSITY-B.ST,Essity,9101,278.54,2534990.0,3802,dip to support,2079968,15207230
+2024-12-02,SIP,,monthly deposit,,,25000.0,0,contribution,2104968,15526323
+2025-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,2129968,15347869
+2025-02-03,SIP,,monthly deposit,,,25000.0,0,contribution,2154968,16029806
+2025-02-04,SELL,ESSITY-B.ST,Essity,9101,258.57,2353249.0,3530,"support broke (entry 278.54, P/L -7.2%)",4504686,16032796
+2025-02-07,BUY,ERIC-B.ST,Ericsson,34182,79.18,2706613.0,4060,dip to support,1794013,16235696
+2025-03-03,SIP,,monthly deposit,,,25000.0,0,contribution,1819013,16925583
+2025-03-31,SELL,ATCO-A.ST,Atlas Copco,14234,154.1,2193462.0,3290,"trailing stop (entry 122.25, P/L +26.1%)",4009185,16202108
+2025-03-31,SELL,ERIC-B.ST,Ericsson,34182,75.18,2569750.0,3855,"support broke (entry 79.18, P/L -5.1%)",6575081,16198253
+2025-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,6600081,16240774
+2025-05-02,SIP,,monthly deposit,,,25000.0,0,contribution,6625081,16958593
+2025-06-02,SIP,,monthly deposit,,,25000.0,0,contribution,6650081,17447112
+2025-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,6675081,17083625
+2025-07-18,BUY,TELIA.ST,Telia,87004,32.88,2860715.0,4291,dip to support,3810075,17160061
+2025-07-25,BUY,EPI-A.ST,Epiroc,14299,203.27,2906611.0,4360,dip to support,899105,17436106
+2025-07-30,SELL,TEL2-B.ST,Tele2,31775,140.34,4459327.0,6689,"trailing stop (entry 72.83, P/L +92.7%)",5351742,17311381
+2025-08-01,SIP,,monthly deposit,,,25000.0,0,contribution,5376742,17149560
+2025-08-08,BUY,SKA-B.ST,Skanska,13026,221.98,2891452.0,4337,dip to support,2480953,17345511
+2025-09-01,SIP,,monthly deposit,,,25000.0,0,contribution,2505953,17478529
+2025-10-01,SIP,,monthly deposit,,,25000.0,0,contribution,2530953,17879032
+2025-11-03,SIP,,monthly deposit,,,25000.0,0,contribution,2555953,18366501
+2025-12-01,SIP,,monthly deposit,,,25000.0,0,contribution,2580953,18644600
+2026-01-02,SIP,,monthly deposit,,,25000.0,0,contribution,2605953,19515173
+2026-02-02,SIP,,monthly deposit,,,25000.0,0,contribution,2630953,21018914
+2026-03-02,SIP,,monthly deposit,,,25000.0,0,contribution,2655953,21544583
+2026-04-01,SIP,,monthly deposit,,,25000.0,0,contribution,2680953,21284608
+2026-05-04,SIP,,monthly deposit,,,25000.0,0,contribution,2705953,21800387
+2026-06-01,SIP,,monthly deposit,,,25000.0,0,contribution,2730953,22422292
+2026-07-01,SIP,,monthly deposit,,,25000.0,0,contribution,2755953,22673230

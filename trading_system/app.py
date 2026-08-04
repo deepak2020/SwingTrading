@@ -381,6 +381,7 @@ PAGE = r"""
     <h1>Portfolio</h1>
     <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · {{d.brokerage_min}} SEK brokerage · week ending {{d.as_of}}</span>
     <span class="refresh">
+      <a class="btn ghost" href="/backtest">📊 Backtest</a>
       {% if edit %}<a class="btn" href="/">✓ Done</a>
       {% else %}<a class="btn ghost" href="?edit=1">✎ Edit</a>
       <a class="btn" href="?refresh=1">↻ Refresh</a>{% endif %}
@@ -727,6 +728,111 @@ PAGE = r"""
 """
 
 
+BACKTEST_PAGE = r"""
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backtest — S/R + SIP</title>
+<style>
+  :root { --bg:#0b0f17; --card:#141b2b; --card2:#1b2436; --line:#26324a;
+    --text:#e6ebf5; --muted:#8b98b0; --accent:#3b82f6; --pos:#22c55e; --neg:#ef4444; --warn:#f59e0b; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f6fb; --card:#fff; --card2:#f0f3f9; --line:#e2e8f0; --text:#111827; --muted:#6b7280; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 60px; }
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; margin-bottom:6px; }
+  h1 { font-size:20px; margin:0; font-weight:650; }
+  h2 { font-size:15px; margin:26px 0 10px; font-weight:640; }
+  .sub { color:var(--muted); font-size:13px; }
+  .back { margin-left:auto; text-decoration:none; background:transparent; color:var(--accent);
+    border:1px solid var(--accent); padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600; }
+  .warn { background:rgba(245,158,11,.12); border:1px solid var(--warn); color:var(--text);
+    border-radius:12px; padding:12px 16px; margin:14px 0; font-size:13.5px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0 4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .val { font-size:22px; font-weight:680; margin-top:4px; }
+  .pos { color:var(--pos); } .neg { color:var(--neg); }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td { padding:8px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child,td:first-child { text-align:left; }
+  th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--card2); }
+  .tablescroll { overflow-x:auto; }
+  .scrollbox { max-height:520px; overflow-y:auto; border:1px solid var(--line); border-radius:12px; }
+  .scrollbox table { border:none; }
+  .pill { font-size:11px; font-weight:700; padding:1px 7px; border-radius:99px; }
+  .pill.buy { background:rgba(59,130,246,.16); color:var(--accent); }
+  .pill.sell { background:rgba(239,68,68,.16); color:var(--neg); }
+  .foot { color:var(--muted); font-size:12px; margin-top:26px; }
+  code { background:var(--card2); padding:1px 6px; border-radius:5px; font-size:13px; }
+</style>
+</head>
+<body><div class="wrap">
+  <header>
+    <h1>Strategy backtest</h1>
+    <span class="sub">Trailing S/R · OMXS30 · 100,000 base + 25,000/mo SIP · {{b.start}} → {{b.end}}</span>
+    <a class="back" href="/">← Dashboard</a>
+  </header>
+
+  <div class="warn">
+    ⚠ <strong>This is a backtest on today's OMXS30 survivors — it is optimistic (survivorship bias).</strong>
+    The realistic, survivorship-corrected return is about <strong>~10% CAGR</strong>. At ~10%, the same
+    {{ "{:,.0f}".format(b.deposited) }} SEK of contributions would grow to roughly <strong>~11–12M</strong>,
+    not the {{ "{:,.0f}".format(b.final) }} shown below. Use ~10% for planning; treat the figures here as the
+    upside end, and the trade sequence as representative of how the strategy behaves.
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Total contributed</div>
+      <div class="val">{{ "{:,.0f}".format(b.deposited) }} <span class="sub">SEK</span></div>
+      <div class="sub">100k + 25k × {{b.n_sip}} months</div></div>
+    <div class="card"><div class="label">Final value <span class="sub">backtest</span></div>
+      <div class="val">{{ "{:,.0f}".format(b.final) }}</div></div>
+    <div class="card"><div class="label">Profit <span class="sub">backtest</span></div>
+      <div class="val {{ 'pos' if b.profit>=0 else 'neg' }}">{{ '+' if b.profit>=0 else '' }}{{ "{:,.0f}".format(b.profit) }}</div></div>
+    <div class="card"><div class="label">Trades</div>
+      <div class="val">{{b.n_buys + b.n_sells}}</div>
+      <div class="sub">{{b.n_buys}} buys · {{b.n_sells}} sells</div></div>
+  </div>
+
+  <h2>Profit by year <span class="sub">investment gain, contributions netted out</span></h2>
+  <div class="tablescroll"><table>
+    <thead><tr><th>Year</th><th>Paid in</th><th>Year-end value</th><th>Profit that year</th></tr></thead><tbody>
+    {% for y in b.yearly %}
+    <tr><td>{{y.year}}</td><td>{{ "{:,.0f}".format(y.paid) }}</td><td>{{ "{:,.0f}".format(y.value) }}</td>
+      <td class="{{ 'pos' if y.profit>=0 else 'neg' }}">{{ '+' if y.profit>=0 else '' }}{{ "{:,.0f}".format(y.profit) }}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  <h2>Every trade <span class="sub">{{b.trades|length}} buys &amp; sells</span></h2>
+  <div class="scrollbox"><table>
+    <thead><tr><th>Date</th><th>Action</th><th>Stock</th><th>Shares</th><th>Price</th><th>Value</th><th>Reason</th></tr></thead><tbody>
+    {% for t in b.trades %}
+    <tr>
+      <td>{{t.date}}</td>
+      <td><span class="pill {{t.action|lower}}">{{t.action}}</span></td>
+      <td>{{t.name}}</td><td>{{t.shares}}</td><td>{{t.price}}</td>
+      <td>{{ "{:,.0f}".format(t.value) }}</td>
+      <td style="text-align:left">{{t.reason}}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+
+  <div class="foot">Strategy: buy a weekly dip to 12-week support in an uptrend (above the 40-week SMA, up week);
+    exit on a 20% trailing stop or a 5% break below entry support; up to 6 equal-weight positions; profit reinvested.
+    Backtest on Yahoo adjusted prices, Nordnet fees (0.15%, min 39 SEK). Survivorship-flattered — see the note above.</div>
+</div>
+</body></html>
+"""
+
+
 def _sparkline(hist, w=920, h=120, pad=8, color=None):
     """Minimal inline-SVG equity line (no external deps). `color` overrides the
     default up/down green/red (used to tint the S/R book's curve differently)."""
@@ -757,6 +863,49 @@ def index():
                       key=lambda x: x[1])
     return render_template_string(PAGE, d=d, chart=chart,
                                   edit=request.args.get("edit") == "1", universe=universe)
+
+
+BACKTEST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest_trades_sip.csv")
+
+
+def _backtest_summary():
+    """Read the committed SIP trade log and derive summary + yearly profit.
+    Static snapshot (a backtest doesn't change day to day) so the page is fast."""
+    df = pd.read_csv(BACKTEST_CSV)
+    df["date"] = pd.to_datetime(df["date"])
+    base = 100_000
+    n_sip = int((df["action"] == "SIP").sum())
+    deposited = base + n_sip * 25_000
+    final = float(df["portfolio_value"].iloc[-1])
+    # running contributions -> yearly investment profit (value minus paid-in)
+    df["paid"] = base + (df["action"] == "SIP").cumsum() * 25_000
+    df["ahead"] = df["portfolio_value"] - df["paid"]
+    ye = df.set_index("date").resample("YE").last()
+    yearly, prev = [], 0.0
+    for d, row in ye.iterrows():
+        yearly.append({"year": d.year, "value": round(row["portfolio_value"]),
+                       "paid": round(row["paid"]), "profit": round(row["ahead"] - prev)})
+        prev = row["ahead"]
+    trades = df[df["action"].isin(["BUY", "SELL"])].copy()
+    trade_rows = [{"date": r["date"].date().isoformat(), "action": r["action"], "name": r["name"],
+                   "shares": int(r["shares"]) if pd.notna(r["shares"]) else "",
+                   "price": r["price"], "value": r["value"], "reason": r["reason"]}
+                  for _, r in trades.iterrows()]
+    return {
+        "start": df["date"].iloc[0].date().isoformat(), "end": df["date"].iloc[-1].date().isoformat(),
+        "deposited": deposited, "final": round(final), "profit": round(final - deposited),
+        "n_buys": int((df["action"] == "BUY").sum()), "n_sells": int((df["action"] == "SELL").sum()),
+        "n_sip": n_sip, "yearly": yearly, "trades": trade_rows,
+    }
+
+
+@app.route("/backtest")
+def backtest_page():
+    try:
+        b = _backtest_summary()
+    except Exception as e:
+        return f"Backtest data unavailable: {e}", 500
+    return render_template_string(BACKTEST_PAGE, b=b)
 
 
 @app.route("/api/data")
