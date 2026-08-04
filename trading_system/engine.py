@@ -32,13 +32,20 @@ class Order:
 # Storage: a Postgres DATABASE_URL (e.g. a free Neon/Supabase database) makes the
 # state survive restarts when hosted; without it we fall back to a local JSON file.
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-_DEFAULT_STATE = lambda: {"cash": config.CAPITAL, "positions": {}}
 
-# Two independent paper books share the same storage, keyed by name:
+# Independent paper books share the same storage, keyed by name:
 #   "momentum" -> the live top-N momentum book (id 1 / state.json)
 #   "sr"       -> the trailing support/resistance book (id 2 / sr_state.json)
-_BOOK_ID = {"momentum": 1, "sr": 2}
-_BOOK_FILE = {"momentum": config.STATE_FILE, "sr": config.SR_STATE_FILE}
+#   "nifty"    -> the Nifty 50 S/R book, INR (id 3 / nifty_state.json)
+_BOOK_ID = {"momentum": 1, "sr": 2, "nifty": 3}
+_BOOK_FILE = {"momentum": config.STATE_FILE, "sr": config.SR_STATE_FILE,
+              "nifty": config.NIFTY_STATE_FILE}
+_BOOK_CAPITAL = {"momentum": lambda: config.CAPITAL, "sr": lambda: config.CAPITAL,
+                 "nifty": lambda: config.NIFTY_CAPITAL}
+
+
+def _DEFAULT_STATE(book="momentum"):
+    return {"cash": _BOOK_CAPITAL[book](), "positions": {}}
 
 
 def storage_mode():
@@ -66,12 +73,12 @@ def load_state(book="momentum"):
                 row = cur.fetchone()
         finally:
             conn.close()
-        return json.loads(row[0]) if row else _DEFAULT_STATE()
+        return json.loads(row[0]) if row else _DEFAULT_STATE(book)
     path = _BOOK_FILE[book]
     if os.path.exists(path):
         with open(path) as f:
             return json.load(f)
-    return _DEFAULT_STATE()
+    return _DEFAULT_STATE(book)
 
 
 def save_state(state, book="momentum"):
@@ -138,9 +145,12 @@ def plan_rebalance(state, signal, px):
     return orders
 
 
-def apply_fill(state, order):
-    """Update state for an executed order (used by paper broker & live sync)."""
-    fee = max(order.notional() * config.COMMISSION_PCT, config.COMMISSION_MIN)
+def apply_fill(state, order, commission_pct=None, commission_min=None):
+    """Update state for an executed order (used by paper broker & live sync).
+    Fee defaults to the Nordnet model; the Nifty book passes Indian delivery fees."""
+    pct = config.COMMISSION_PCT if commission_pct is None else commission_pct
+    fee_min = config.COMMISSION_MIN if commission_min is None else commission_min
+    fee = max(order.notional() * pct, fee_min)
     if order.side == "BUY":
         state["cash"] -= order.notional() + fee
         state["positions"][order.ticker] = {

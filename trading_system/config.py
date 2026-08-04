@@ -42,6 +42,23 @@ TICKERS = [
     "SHB-A.ST", "SWED-A.ST", "TEL2-B.ST", "TELIA.ST", "VOLV-B.ST",
 ]
 
+# ---- Nifty 50 S/R book (second market — see ../backtest observations) ----
+# Same trailing-S/R strategy run on India's Nifty 50 via the user's Indian
+# brokerage. Separate paper book, INR-denominated, Indian delivery fees.
+NIFTY_TICKERS = [t + ".NS" for t in [
+    "RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS", "ITC", "LT", "KOTAKBANK",
+    "AXISBANK", "SBIN", "BHARTIARTL", "BAJFINANCE", "HINDUNILVR", "ASIANPAINT",
+    "MARUTI", "HCLTECH", "SUNPHARMA", "TITAN", "ULTRACEMCO", "WIPRO", "NESTLEIND",
+    "ONGC", "POWERGRID", "NTPC", "TATAMOTORS", "TATASTEEL", "JSWSTEEL", "ADANIENT",
+    "ADANIPORTS", "GRASIM", "HDFCLIFE", "SBILIFE", "BAJAJFINSV", "BAJAJ-AUTO",
+    "BRITANNIA", "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "HEROMOTOCO",
+    "HINDALCO", "INDUSINDBK", "M&M", "APOLLOHOSP", "BPCL", "TECHM", "TATACONSUM",
+    "LTIM", "SHRIRAMFIN", "DIVISLAB",
+]]
+NIFTY_CAPITAL = float(os.environ.get("NIFTY_CAPITAL", 1_000_000))  # INR (10 lakh)
+NIFTY_COMMISSION_PCT = 0.0012    # ~0.12%/side delivery (STT+txn+GST+stamp)
+NIFTY_COMMISSION_MIN = 0.0       # discount broker: no minimum
+
 # ---- Paths ----
 # DATA_DIR holds the mutable state (positions, cash, logs). Defaults to this
 # folder for local use; set STATE_DIR to a persistent-disk path when hosting
@@ -50,7 +67,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("STATE_DIR", _HERE)
 os.makedirs(DATA_DIR, exist_ok=True)
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
-SR_STATE_FILE = os.path.join(DATA_DIR, "sr_state.json")   # trailing-S/R paper book
+SR_STATE_FILE = os.path.join(DATA_DIR, "sr_state.json")       # trailing-S/R paper book
+NIFTY_STATE_FILE = os.path.join(DATA_DIR, "nifty_state.json")  # Nifty 50 S/R paper book
 LOG_FILE = os.path.join(DATA_DIR, "trades.log")
 
 # ---- Nordnet API (fill via environment; never hard-code secrets) ----

@@ -29,6 +29,25 @@ NAMES = {
     "SAAB-B.ST": "SAAB", "SAND.ST": "Sandvik", "SEB-A.ST": "SEB", "SKA-B.ST": "Skanska",
     "SKF-B.ST": "SKF", "SCA-B.ST": "SCA", "SHB-A.ST": "Handelsbanken", "SWED-A.ST": "Swedbank",
     "TEL2-B.ST": "Tele2", "TELIA.ST": "Telia", "VOLV-B.ST": "Volvo",
+    # Nifty 50 (the .NS suffix keeps the two universes distinct in one map)
+    "RELIANCE.NS": "Reliance", "HDFCBANK.NS": "HDFC Bank", "ICICIBANK.NS": "ICICI Bank",
+    "INFY.NS": "Infosys", "TCS.NS": "TCS", "ITC.NS": "ITC", "LT.NS": "L&T",
+    "KOTAKBANK.NS": "Kotak Bank", "AXISBANK.NS": "Axis Bank", "SBIN.NS": "SBI",
+    "BHARTIARTL.NS": "Bharti Airtel", "BAJFINANCE.NS": "Bajaj Finance",
+    "HINDUNILVR.NS": "Hind. Unilever", "ASIANPAINT.NS": "Asian Paints",
+    "MARUTI.NS": "Maruti Suzuki", "HCLTECH.NS": "HCL Tech", "SUNPHARMA.NS": "Sun Pharma",
+    "TITAN.NS": "Titan", "ULTRACEMCO.NS": "UltraTech", "WIPRO.NS": "Wipro",
+    "NESTLEIND.NS": "Nestle India", "ONGC.NS": "ONGC", "POWERGRID.NS": "Power Grid",
+    "NTPC.NS": "NTPC", "TATAMOTORS.NS": "Tata Motors", "TATASTEEL.NS": "Tata Steel",
+    "JSWSTEEL.NS": "JSW Steel", "ADANIENT.NS": "Adani Ent.", "ADANIPORTS.NS": "Adani Ports",
+    "GRASIM.NS": "Grasim", "HDFCLIFE.NS": "HDFC Life", "SBILIFE.NS": "SBI Life",
+    "BAJAJFINSV.NS": "Bajaj Finserv", "BAJAJ-AUTO.NS": "Bajaj Auto",
+    "BRITANNIA.NS": "Britannia", "CIPLA.NS": "Cipla", "COALINDIA.NS": "Coal India",
+    "DRREDDY.NS": "Dr Reddy's", "EICHERMOT.NS": "Eicher Motors",
+    "HEROMOTOCO.NS": "Hero MotoCorp", "HINDALCO.NS": "Hindalco",
+    "INDUSINDBK.NS": "IndusInd Bank", "M&M.NS": "M&M", "APOLLOHOSP.NS": "Apollo Hosp.",
+    "BPCL.NS": "BPCL", "TECHM.NS": "Tech Mahindra", "TATACONSUM.NS": "Tata Consumer",
+    "LTIM.NS": "LTIMindtree", "SHRIRAMFIN.NS": "Shriram Finance", "DIVISLAB.NS": "Divi's Labs",
 }
 
 

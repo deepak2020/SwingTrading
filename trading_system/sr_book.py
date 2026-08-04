@@ -138,8 +138,11 @@ def _support_at(ohlc, ticker, since, lookback_w):
 
 def live_book(ohlc, state,
               lookback_w=None, support_touch=None, trend_sma_w=None,
-              stop_below=None, trail=None, max_pos=None):
-    """Evaluate the user's recorded S/R positions against the live signal."""
+              stop_below=None, trail=None, max_pos=None, capital=None):
+    """Evaluate the user's recorded S/R positions against the live signal.
+    `capital` sets the default cash/P-L baseline (SEK book: config.CAPITAL;
+    Nifty book: config.NIFTY_CAPITAL)."""
+    capital = config.CAPITAL if capital is None else capital
     lookback_w = config.SR_LOOKBACK_W if lookback_w is None else lookback_w
     support_touch = config.SR_SUPPORT_TOUCH if support_touch is None else support_touch
     trend_sma_w = config.SR_TREND_SMA_W if trend_sma_w is None else trend_sma_w
@@ -204,7 +207,7 @@ def live_book(ohlc, state,
                                  "price": row["now"], "reason": reason})
     rows.sort(key=lambda r: r["value"], reverse=True)
 
-    cash = float(state.get("cash", config.CAPITAL))
+    cash = float(state.get("cash", capital))
     account_value = cash + invested
     for r in rows:
         r["weight"] = round(r["value"] / invested * 100, 1) if invested else 0.0
@@ -231,7 +234,7 @@ def live_book(ohlc, state,
 
     # P/L is measured against NET CONTRIBUTIONS (what you actually put in), not a
     # fixed 100k — so SIP top-ups (recorded via "Set cash") don't count as profit.
-    deposited = float(state.get("deposited", config.CAPITAL))
+    deposited = float(state.get("deposited", capital))
     total_pl = account_value - deposited
     return {
         "as_of": as_of,

@@ -65,6 +65,10 @@ def healthz():
 _CACHE = {"prices": None, "ohlc": None, "index": None, "ts": 0.0}
 _CACHE_TTL = 300  # 5 minutes — matches the page's 5-min auto-refresh
 
+# Separate cache for the Nifty 50 book (fetched lazily when /nifty is opened,
+# so the main dashboard never waits on 50 extra tickers).
+_NIFTY_CACHE = {"ohlc": None, "ts": 0.0}
+
 _INDEX_TICKER = "^OMX"   # OMXS30 index on Yahoo
 
 
@@ -381,6 +385,7 @@ PAGE = r"""
     <h1>Portfolio</h1>
     <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · {{d.brokerage_min}} SEK brokerage · week ending {{d.as_of}}</span>
     <span class="refresh">
+      <a class="btn ghost" href="/nifty">🇮🇳 Nifty</a>
       <a class="btn ghost" href="/backtest">📊 Backtest</a>
       {% if edit %}<a class="btn" href="/">✓ Done</a>
       {% else %}<a class="btn ghost" href="?edit=1">✎ Edit</a>
@@ -833,6 +838,239 @@ BACKTEST_PAGE = r"""
 """
 
 
+NIFTY_PAGE = r"""
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nifty 50 — Trailing S/R</title>
+<style>
+  :root { --bg:#0b0f17; --card:#141b2b; --card2:#1b2436; --line:#26324a;
+    --text:#e6ebf5; --muted:#8b98b0; --accent:#f59e0b; --blue:#3b82f6; --pos:#22c55e; --neg:#ef4444; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f6fb; --card:#fff; --card2:#f0f3f9; --line:#e2e8f0; --text:#111827; --muted:#6b7280; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 60px; }
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; margin-bottom:6px; }
+  h1 { font-size:20px; margin:0; font-weight:650; }
+  h2 { font-size:15px; margin:26px 0 10px; font-weight:640; }
+  .sub { color:var(--muted); font-size:13px; }
+  .refresh { margin-left:auto; display:flex; gap:8px; }
+  a.btn { text-decoration:none; background:var(--accent); color:#111; padding:7px 14px;
+    border-radius:8px; font-size:13px; font-weight:600; }
+  a.btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:16px 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .card .val { font-size:22px; font-weight:680; margin-top:4px; }
+  .pos { color:var(--pos); } .neg { color:var(--neg); }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child,td:first-child { text-align:left; }
+  th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--card2); }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px;
+    background:var(--card2); color:var(--muted); border:1px solid var(--line); }
+  .tag.buy { background:rgba(245,158,11,.16); color:var(--accent); border-color:transparent; }
+  .tablescroll { overflow-x:auto; }
+  .empty { background:var(--card); border:1px dashed var(--line); border-radius:12px;
+    padding:26px; text-align:center; color:var(--muted); }
+  input, select { background:var(--card2); border:1px solid var(--line); color:var(--text);
+    padding:8px 10px; border-radius:8px; font-size:15px; min-width:0; }
+  input { width:110px; }
+  label { display:inline-flex; flex-direction:column; gap:4px; font-size:11px;
+    text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  button { background:var(--accent); color:#111; border:none; padding:9px 16px; border-radius:8px;
+    font-weight:600; cursor:pointer; font-size:14px; }
+  button.danger { background:transparent; color:var(--neg); border:1px solid var(--neg); }
+  .editcard { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px; }
+  .editcard .ename { font-weight:640; margin-bottom:10px; }
+  .frow { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; }
+  .frow form { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; }
+  .hint { color:var(--muted); font-size:12px; margin:2px 0 14px; }
+  .actions { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .act { display:flex; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); }
+  .act:last-child { border-bottom:none; }
+  .pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px; white-space:nowrap; }
+  .pill.sell { background:rgba(239,68,68,.16); color:var(--neg); }
+  .pill.buy { background:rgba(245,158,11,.16); color:var(--accent); }
+  .pill.hold { background:var(--card2); color:var(--muted); }
+  .summary { color:var(--muted); font-size:13px; margin:2px 0 12px; }
+  .foot { color:var(--muted); font-size:12px; margin-top:26px; }
+</style>
+</head>
+<body><div class="wrap">
+  <header>
+    <h1>Nifty 50 <span class="sub">Trailing S/R · India</span></h1>
+    <span class="sub">buy the dip · {{n.trail_pct}}% trailing stop · ₹ INR</span>
+    <span class="refresh">
+      <a class="btn ghost" href="/">← Dashboard</a>
+      {% if edit %}<a class="btn" href="/nifty">✓ Done</a>
+      {% else %}<a class="btn ghost" href="/nifty?edit=1">✎ Edit</a>
+      <a class="btn" href="/nifty?refresh=1">↻ Refresh</a>{% endif %}
+    </span>
+  </header>
+
+  {% if not n %}
+  <div class="empty">Could not load Nifty prices right now — try ↻ Refresh in a minute.</div>
+  {% else %}
+  <div class="cards">
+    <div class="card"><div class="label">Book value</div>
+      <div class="val">₹{{ "{:,.0f}".format(n.account_value) }}</div></div>
+    <div class="card"><div class="label">P/L <span class="sub">net</span></div>
+      <div class="val {{ 'pos' if n.total_pl>=0 else 'neg' }}">
+        {{ '+' if n.total_pl>=0 else '' }}{{ "{:,.0f}".format(n.total_pl) }}
+        <span class="sub">({{ '+' if n.total_pl_pct>=0 else '' }}{{n.total_pl_pct}}%)</span></div>
+      <div class="sub">on ₹{{ "{:,.0f}".format(n.deposited) }} put in</div></div>
+    <div class="card"><div class="label">Cash</div>
+      <div class="val">₹{{ "{:,.0f}".format(n.cash) }}</div></div>
+    <div class="card"><div class="label">Exposure</div>
+      <div class="val">{{n.exposure_pct}}% <span class="sub">{{n.n_positions}}/{{n.max_pos}}</span></div></div>
+  </div>
+
+  <div class="summary">Sell {{n.sell_signals|length}} · Buy {{n.buy_signals|length}}
+    {% if not n.sell_signals and not n.buy_signals %}— nothing to do.{% endif %}
+    <br><span class="sub">BUY confirmed at the Friday close of {{n.signal_week}} (stable all week — buy Monday).
+    SELL checked live ({{n.as_of}}). NSE trades via your Indian brokerage.</span></div>
+  {% if n.sell_signals or n.buy_signals %}
+  <div class="actions">
+    {% for a in n.sell_signals %}
+    <div class="act"><span class="pill sell">SELL</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · {{a.shares}} sh @ ~{{a.price}}</span></div>
+    {% endfor %}
+    {% for a in n.buy_signals %}
+    <div class="act"><span class="pill buy">BUY</span>
+      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · <strong>~₹{{ "{:,.0f}".format(a.alloc_sek) }} (~{{a.sugg_shares}} sh)</strong>
+      · now {{a.now}} ({{ '+' if a.moved_pct>=0 else '' }}{{a.moved_pct}}% since signal){% if a.stale %} ⚠ ran away{% endif %}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h2>Holdings</h2>
+  {% if edit %}
+  <p class="hint">Record your real NSE fills (₹). Stops and peaks are computed from live prices.</p>
+  {% for p in n.positions %}
+  <div class="editcard">
+    <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
+      {{p.name}} <span class="sub">{{p.ticker}} · now {{p.now}} · stop {{p.stop_price}} · P/L</span>
+      <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
+    <div class="frow">
+      <form method="post" action="/nifty/position/update">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Shares<input type="number" name="shares" value="{{p.shares}}" min="1" step="1" inputmode="numeric"></label>
+        <label>Entry price<input type="number" name="price" value="{{p.entry}}" min="0" step="0.01" inputmode="decimal"></label>
+        <label>Buy date<input type="date" name="since" value="{{p.since}}"></label>
+        <button>Save</button>
+      </form>
+      <form method="post" action="/nifty/position/sell" onsubmit="return confirm('Sell all {{p.shares}} {{p.ticker}}?');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
+        <button class="danger">Sell</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="editcard">
+    <div class="ename">＋ Add position</div>
+    <form class="frow" method="post" action="/nifty/position/add">
+      <label>Stock<select name="ticker">
+        {% for t, nm in universe %}<option value="{{t}}">{{nm}} ({{t}})</option>{% endfor %}
+      </select></label>
+      <label>Shares<input type="number" name="shares" min="1" step="1" inputmode="numeric" required></label>
+      <label>Price<input type="number" name="price" min="0" step="0.01" inputmode="decimal" required></label>
+      <label>Buy date<input type="date" name="since"></label>
+      <button>Add</button>
+    </form>
+  </div>
+  <div class="editcard">
+    <div class="ename">Cash <span class="sub">deposit / withdraw</span></div>
+    <form class="frow" method="post" action="/nifty/cash">
+      <label>Balance (₹)<input type="number" name="cash" value="{{ "%.2f"|format(n.cash) }}" step="0.01" inputmode="decimal"></label>
+      <button>Set cash</button>
+    </form>
+    <p class="hint" style="margin:8px 0 0">Cash changes are treated as deposits/withdrawals — the P/L baseline moves with
+      them. Currently measured against ₹{{ "{:,.0f}".format(n.deposited) }} put in.</p>
+  </div>
+  {% elif n.positions %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value ₹</th></tr></thead><tbody>
+    {% for p in n.positions %}
+    <tr>
+      <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
+        <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
+      <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
+        <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
+      <td>{{p.peak}}</td>
+      <td>{{p.stop_price}}</td>
+      <td class="{{ 'neg' if p.stop_dist_pct is not none and p.stop_dist_pct < 5 else '' }}">
+        {% if p.stop_dist_pct is not none %}{{p.stop_dist_pct}}%{% else %}—{% endif %}</td>
+      <td>{{ "{:,.0f}".format(p.value) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <div class="empty">No Nifty positions yet.<br>
+    Tap <strong>✎ Edit</strong> to record fills, or start from the BUY signals above.
+    Paper-trade first — same rules as the Swedish book.</div>
+  {% endif %}
+
+  <h2>Watchlist <span class="sub">confirmed at Friday close {{n.signal_week}} · buy Monday</span></h2>
+  {% if n.watch %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Support</th><th>Low vs sup</th><th>Signal close</th><th>Now</th><th>Since signal</th><th>Buy ~</th><th></th></tr></thead><tbody>
+    {% for s in n.watch %}
+    <tr>
+      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
+      <td>{{s.support}}</td>
+      <td class="{{ 'pos' if s.low_vs_sup>=0 else 'neg' }}">{{ '+' if s.low_vs_sup>=0 else '' }}{{s.low_vs_sup}}%</td>
+      <td>{{s.price}}</td>
+      <td>{{s.now}}</td>
+      <td class="{{ 'neg' if s.stale else '' }}">{{ '+' if s.moved_pct>=0 else '' }}{{s.moved_pct}}%{% if s.stale %} ⚠{% endif %}</td>
+      <td>{{s.sugg_shares}} sh<br><span class="sub">₹{{ "{:,.0f}".format(s.alloc_sek) }}</span></td>
+      <td>{% if loop.index0 < n.free_slots %}<span class="tag buy">buy now</span>{% else %}<span class="tag">full</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="sub">Nothing dipped to support and bounced this week — no buys.</p>
+  {% endif %}
+
+  <h2>Watch this week <span class="sub">approaching support</span></h2>
+  {% if n.monitor %}
+  <div class="tablescroll"><table>
+    <thead><tr><th>Stock</th><th>Price</th><th>Support</th><th>Above support</th><th>Dip-to-buy</th><th></th></tr></thead><tbody>
+    {% for s in n.monitor %}
+    <tr>
+      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
+      <td>{{s.price}}</td>
+      <td>{{s.support}}</td>
+      <td class="{{ 'pos' if s.pct_above<=8 else '' }}">+{{s.pct_above}}%</td>
+      <td>{{s.dip_to_buy}}</td>
+      <td>{% if s.at_support %}<span class="tag buy">at support ⚠ watch Fri close</span>{% elif s.pct_above<=8 %}<span class="tag">near</span>{% else %}<span class="tag">far</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <p class="sub">Nothing near support in an uptrend right now.</p>
+  {% endif %}
+  {% endif %}
+
+  <div class="foot">Same strategy as the Swedish S/R book, applied to Nifty 50 (NSE, ₹).
+    Backtested 2010–2026: strong drawdown control (−22% vs index −38%) and low correlation with the
+    Swedish book — but survivorship-flattered like all backtests; plan on ~10%/yr. Paper book —
+    places no orders; fees modelled at 0.12%/side delivery.</div>
+</div>
+</body></html>
+"""
+
+
 def _sparkline(hist, w=920, h=120, pad=8, color=None):
     """Minimal inline-SVG equity line (no external deps). `color` overrides the
     default up/down green/red (used to tint the S/R book's curve differently)."""
@@ -863,6 +1101,25 @@ def index():
                       key=lambda x: x[1])
     return render_template_string(PAGE, d=d, chart=chart,
                                   edit=request.args.get("edit") == "1", universe=universe)
+
+
+def _nifty_snapshot(force=False):
+    """The Nifty 50 S/R paper book, on its own lazily-fetched OHLC cache."""
+    if force or _NIFTY_CACHE["ohlc"] is None or (time.time() - _NIFTY_CACHE["ts"]) > _CACHE_TTL:
+        try:
+            ohlc = strategy.fetch_ohlc(config.NIFTY_TICKERS, years=config.SR_HISTORY_YEARS)
+            if ohlc is not None and not ohlc["close"].empty:
+                _NIFTY_CACHE["ohlc"] = ohlc
+                _NIFTY_CACHE["ts"] = time.time()
+        except Exception:
+            pass
+    if not _NIFTY_CACHE["ohlc"]:
+        return None
+    try:
+        return sr_book.live_book(_NIFTY_CACHE["ohlc"], engine.load_state("nifty"),
+                                 capital=config.NIFTY_CAPITAL)
+    except Exception:
+        return None
 
 
 BACKTEST_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest_trades_sip.csv")
@@ -906,6 +1163,88 @@ def backtest_page():
     except Exception as e:
         return f"Backtest data unavailable: {e}", 500
     return render_template_string(BACKTEST_PAGE, b=b)
+
+
+@app.route("/nifty")
+def nifty_page():
+    n = _nifty_snapshot(force=request.args.get("refresh") == "1")
+    universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.NIFTY_TICKERS),
+                      key=lambda x: x[1])
+    return render_template_string(NIFTY_PAGE, n=n,
+                                  edit=request.args.get("edit") == "1", universe=universe)
+
+
+# ---- editing the Nifty book (book="nifty", Indian delivery fees) ----
+
+@app.route("/nifty/position/add", methods=["POST"])
+def nifty_position_add():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/nifty?edit=1")
+    since = request.form.get("since") or date.today().isoformat()
+    if tkr and shares > 0 and price > 0:
+        state = engine.load_state("nifty")
+        engine.apply_fill(state, engine.Order("BUY", tkr, shares, price, "MANUAL"),
+                          commission_pct=config.NIFTY_COMMISSION_PCT,
+                          commission_min=config.NIFTY_COMMISSION_MIN)
+        state["positions"][tkr]["since"] = since
+        engine.save_state(state, "nifty")
+    return redirect("/nifty?edit=1")
+
+
+@app.route("/nifty/position/update", methods=["POST"])
+def nifty_position_update():
+    try:
+        tkr = request.form["ticker"]
+        shares = int(request.form["shares"])
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/nifty?edit=1")
+    state = engine.load_state("nifty")
+    pos = state["positions"].get(tkr)
+    if pos and shares > 0 and price > 0:
+        pos["shares"] = shares
+        pos["entry"] = price
+        pos["peak"] = max(float(pos.get("peak", price)), price)
+        if request.form.get("since"):
+            pos["since"] = request.form["since"]
+        pos.pop("sup_entry", None)
+        engine.save_state(state, "nifty")
+    return redirect("/nifty?edit=1")
+
+
+@app.route("/nifty/position/sell", methods=["POST"])
+def nifty_position_sell():
+    tkr = request.form.get("ticker", "")
+    try:
+        price = float(request.form["price"])
+    except (KeyError, ValueError):
+        return redirect("/nifty?edit=1")
+    state = engine.load_state("nifty")
+    pos = state["positions"].get(tkr)
+    if pos and price > 0:
+        engine.apply_fill(state, engine.Order("SELL", tkr, pos["shares"], price, "MANUAL"),
+                          commission_pct=config.NIFTY_COMMISSION_PCT,
+                          commission_min=config.NIFTY_COMMISSION_MIN)
+        engine.save_state(state, "nifty")
+    return redirect("/nifty?edit=1")
+
+
+@app.route("/nifty/cash", methods=["POST"])
+def nifty_set_cash():
+    try:
+        state = engine.load_state("nifty")
+        new_cash = float(request.form["cash"])
+        old_cash = float(state.get("cash", config.NIFTY_CAPITAL))
+        state["deposited"] = float(state.get("deposited", config.NIFTY_CAPITAL)) + (new_cash - old_cash)
+        state["cash"] = new_cash
+        engine.save_state(state, "nifty")
+    except (KeyError, ValueError):
+        pass
+    return redirect("/nifty?edit=1")
 
 
 @app.route("/api/data")
