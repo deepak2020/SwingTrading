@@ -253,7 +253,10 @@ def build_snapshot(force=False):
     account_value = engine.portfolio_value(state, px)
     hist = _log_equity(account_value)
 
-    total_pl = account_value - config.CAPITAL
+    # P/L is measured against NET CONTRIBUTIONS (what you actually put in), not a
+    # fixed 100k — so SIP top-ups (recorded via "Set cash") don't count as profit.
+    deposited = float(state.get("deposited", config.CAPITAL))
+    total_pl = account_value - deposited
     # Brokerage paid = the larger of what we've tracked on app trades and the
     # brokerage implied by the positions currently held (each was bought once).
     # This keeps the figure honest for holdings entered before fee-tracking, via
@@ -269,11 +272,12 @@ def build_snapshot(force=False):
         "updated": time.strftime("%Y-%m-%d %H:%M", time.localtime(_CACHE["ts"])),
         "account_value": round(account_value, 0),
         "cash": round(state["cash"], 0),
+        "deposited": round(deposited, 0),
         "invested": round(invested, 0),
         "exposure_pct": round(invested / account_value * 100, 1) if account_value else 0.0,
         "start_capital": config.CAPITAL,
         "total_pl": round(total_pl, 0),
-        "total_pl_pct": round(total_pl / config.CAPITAL * 100, 1),
+        "total_pl_pct": round(total_pl / deposited * 100, 1) if deposited else 0.0,
         "n_positions": len(positions),
         "top_n": config.TOP_N,
         "trail_pct": int(config.TRAIL_STOP_PCT * 100),
@@ -396,10 +400,11 @@ PAGE = r"""
   <div class="cards">
     <div class="card"><div class="label">Account value</div>
       <div class="val">{{ "{:,.0f}".format(d.account_value) }} <span class="sub">SEK</span></div></div>
-    <div class="card"><div class="label">Total P/L</div>
+    <div class="card"><div class="label">Total P/L <span class="sub">net</span></div>
       <div class="val {{ 'pos' if d.total_pl>=0 else 'neg' }}">
         {{ '+' if d.total_pl>=0 else '' }}{{ "{:,.0f}".format(d.total_pl) }}
-        <span class="sub">({{ '+' if d.total_pl_pct>=0 else '' }}{{d.total_pl_pct}}%)</span></div></div>
+        <span class="sub">({{ '+' if d.total_pl_pct>=0 else '' }}{{d.total_pl_pct}}%)</span></div>
+      <div class="sub">on {{ "{:,.0f}".format(d.deposited) }} put in</div></div>
     <div class="card"><div class="label">Cash</div>
       <div class="val">{{ "{:,.0f}".format(d.cash) }}</div></div>
     <div class="card"><div class="label">Exposure</div>
@@ -488,11 +493,14 @@ PAGE = r"""
   </div>
 
   <div class="editcard">
-    <div class="ename">Cash</div>
+    <div class="ename">Cash <span class="sub">deposit / withdraw</span></div>
     <form class="frow" method="post" action="/cash">
       <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.cash) }}" step="0.01" inputmode="decimal"></label>
       <button>Set cash</button>
     </form>
+    <p class="hint" style="margin:8px 0 0">Changing cash is treated as a deposit or withdrawal (e.g. your monthly SIP) —
+      the P/L baseline moves with it, so contributions don't show up as profit. Currently measured against
+      {{ "{:,.0f}".format(d.deposited) }} SEK put in.</p>
   </div>
 
   {% elif d.positions %}
@@ -1306,7 +1314,12 @@ def position_sell():
 def set_cash():
     try:
         state = engine.load_state()
-        state["cash"] = float(request.form["cash"])
+        new_cash = float(request.form["cash"])
+        old_cash = float(state.get("cash", config.CAPITAL))
+        # A cash change is a deposit/withdrawal (e.g. your monthly SIP), not profit:
+        # move the P/L baseline by the same delta so contributions don't show as gains.
+        state["deposited"] = float(state.get("deposited", config.CAPITAL)) + (new_cash - old_cash)
+        state["cash"] = new_cash
         engine.save_state(state)
     except (KeyError, ValueError):
         pass
