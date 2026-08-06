@@ -98,25 +98,47 @@ def _fetch_index():
     return None
 
 
+def _try_fetch_prices(provider):
+    """Try one provider end-to-end (OHLC, then close-only). Returns (prices,
+    ohlc) -- ohlc may be None even on success (close-only fallback), and both
+    are None if this provider produced nothing usable."""
+    ohlc = None
+    try:
+        ohlc = strategy.fetch_ohlc(config.TICKERS, years=config.SR_HISTORY_YEARS, provider=provider)
+    except Exception:
+        ohlc = None
+    if ohlc is not None and not ohlc["close"].empty:
+        return ohlc["close"], ohlc
+    try:
+        prices = strategy.fetch_prices(config.TICKERS, provider=provider)
+    except Exception:
+        prices = None
+    if prices is not None and not prices.empty:
+        return prices, None
+    return None, None
+
+
 def get_prices(force=False):
     """Refresh the shared cache once per TTL. Pulls daily OHLC (used by both the
     momentum book's closes and the S/R paper book); falls back to close-only if
     the OHLC fetch fails so the momentum book always works."""
     if force or _CACHE["prices"] is None or (time.time() - _CACHE["ts"]) > _CACHE_TTL:
         provider = _PROVIDER["value"]
-        ohlc = None
-        try:
-            ohlc = strategy.fetch_ohlc(config.TICKERS, years=config.SR_HISTORY_YEARS, provider=provider)
-        except Exception:
-            ohlc = None
-        if ohlc is not None and not ohlc["close"].empty:
+        prices, ohlc = _try_fetch_prices(provider)
+        if prices is None and provider != "auto":
+            # The forced/non-default provider came back with nothing at all
+            # (e.g. Stooq unreachable from this host) -- fall back to auto
+            # (Yahoo) rather than serve a blank dashboard, and un-stick the
+            # override so future loads don't keep hitting the same dead end.
+            _PROVIDER["value"] = "auto"
+            prices, ohlc = _try_fetch_prices("auto")
+        if prices is not None:
             _CACHE["ohlc"] = ohlc
-            _CACHE["prices"] = ohlc["close"]
-        else:
-            _CACHE["ohlc"] = None
-            _CACHE["prices"] = strategy.fetch_prices(config.TICKERS, provider=provider)
-        _CACHE["index"] = _fetch_index()
-        _CACHE["ts"] = time.time()
+            _CACHE["prices"] = prices
+            _CACHE["index"] = _fetch_index()
+            _CACHE["ts"] = time.time()
+        # else: every provider came back empty (e.g. no network at all) --
+        # keep serving whatever was cached before rather than blank it out.
     return _CACHE["prices"]
 
 
@@ -1160,8 +1182,15 @@ def _nifty_snapshot(force=False):
     """The Nifty 50 S/R paper book, on its own lazily-fetched OHLC cache."""
     if force or _NIFTY_CACHE["ohlc"] is None or (time.time() - _NIFTY_CACHE["ts"]) > _CACHE_TTL:
         try:
+            provider = _PROVIDER["value"]
             ohlc = strategy.fetch_ohlc(config.NIFTY_TICKERS, years=config.SR_HISTORY_YEARS,
-                                       provider=_PROVIDER["value"])
+                                       provider=provider)
+            if (ohlc is None or ohlc["close"].empty) and provider != "auto":
+                # same reasoning as get_prices(): a forced non-Yahoo provider
+                # that produced nothing shouldn't leave this book blank.
+                _PROVIDER["value"] = "auto"
+                ohlc = strategy.fetch_ohlc(config.NIFTY_TICKERS, years=config.SR_HISTORY_YEARS,
+                                           provider="auto")
             if ohlc is not None and not ohlc["close"].empty:
                 _NIFTY_CACHE["ohlc"] = ohlc
                 _NIFTY_CACHE["ts"] = time.time()
