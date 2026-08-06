@@ -65,6 +65,12 @@ def healthz():
 _CACHE = {"prices": None, "ohlc": None, "index": None, "ts": 0.0}
 _CACHE_TTL = 300  # 5 minutes — matches the page's 5-min auto-refresh
 
+# Manual data-provider override. "auto" = Yahoo, falling back to Stooq only on
+# a hard failure per ticker. "stooq" = skip Yahoo entirely -- for the case
+# Yahoo can't self-detect: a feed-wide outage where it still returns 200 OK
+# with stale data, which doesn't look like a failure to the auto path.
+_PROVIDER = {"value": "auto"}
+
 # Separate cache for the Nifty 50 book (fetched lazily when /nifty is opened,
 # so the main dashboard never waits on 50 extra tickers).
 _NIFTY_CACHE = {"ohlc": None, "ts": 0.0}
@@ -97,9 +103,10 @@ def get_prices(force=False):
     momentum book's closes and the S/R paper book); falls back to close-only if
     the OHLC fetch fails so the momentum book always works."""
     if force or _CACHE["prices"] is None or (time.time() - _CACHE["ts"]) > _CACHE_TTL:
+        provider = _PROVIDER["value"]
         ohlc = None
         try:
-            ohlc = strategy.fetch_ohlc(config.TICKERS, years=config.SR_HISTORY_YEARS)
+            ohlc = strategy.fetch_ohlc(config.TICKERS, years=config.SR_HISTORY_YEARS, provider=provider)
         except Exception:
             ohlc = None
         if ohlc is not None and not ohlc["close"].empty:
@@ -107,7 +114,7 @@ def get_prices(force=False):
             _CACHE["prices"] = ohlc["close"]
         else:
             _CACHE["ohlc"] = None
-            _CACHE["prices"] = strategy.fetch_prices(config.TICKERS)
+            _CACHE["prices"] = strategy.fetch_prices(config.TICKERS, provider=provider)
         _CACHE["index"] = _fetch_index()
         _CACHE["ts"] = time.time()
     return _CACHE["prices"]
@@ -730,7 +737,10 @@ PAGE = r"""
 
   <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during
     market hours (Mon–Fri 09:00–17:30 CET) · read-only dashboard, places no orders ·
-    start capital {{ "{:,.0f}".format(d.start_capital) }} SEK</div>
+    start capital {{ "{:,.0f}".format(d.start_capital) }} SEK
+    <br>Data source: <strong>{{ 'Stooq (forced)' if provider=='stooq' else 'Yahoo (auto → Stooq on failure)' }}</strong>
+    {% if provider=='stooq' %}· <a href="/provider/auto">switch back to auto</a>
+    {% else %}· <a href="/provider/stooq">force Stooq</a> if prices look stuck{% endif %}</div>
 </div>
 <script>
   // Auto-refresh every 5 min during Stockholm market hours (Mon-Fri 09:00-17:30),
@@ -1104,7 +1114,11 @@ NIFTY_PAGE = r"""
   <div class="foot">Same strategy as the Swedish S/R book, applied to Nifty 50 (NSE, ₹).
     Backtested 2010–2026: strong drawdown control (−22% vs index −38%) and low correlation with the
     Swedish book — but survivorship-flattered like all backtests; plan on ~10%/yr. Paper book —
-    places no orders; fees modelled at 0.12%/side delivery.</div>
+    places no orders; fees modelled at 0.12%/side delivery.
+    <br>Data source: <strong>{{ 'Stooq (forced)' if provider=='stooq' else 'Yahoo (auto → Stooq on failure)' }}</strong>
+    {% if provider=='stooq' %}· <a href="/provider/auto">switch back to auto</a>
+    {% else %}· <a href="/provider/stooq">force Stooq</a> if prices look stuck (NSE coverage on Stooq is unverified){% endif %}
+    · <span class="sub">this switch is shared with the Swedish dashboard</span></div>
 </div>
 </body></html>
 """
@@ -1138,7 +1152,7 @@ def index():
     chart = _sparkline(d["equity_history"]) if len(d["equity_history"]) > 1 else ""
     universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.TICKERS),
                       key=lambda x: x[1])
-    return render_template_string(PAGE, d=d, chart=chart,
+    return render_template_string(PAGE, d=d, chart=chart, provider=_PROVIDER["value"],
                                   edit=request.args.get("edit") == "1", universe=universe)
 
 
@@ -1146,7 +1160,8 @@ def _nifty_snapshot(force=False):
     """The Nifty 50 S/R paper book, on its own lazily-fetched OHLC cache."""
     if force or _NIFTY_CACHE["ohlc"] is None or (time.time() - _NIFTY_CACHE["ts"]) > _CACHE_TTL:
         try:
-            ohlc = strategy.fetch_ohlc(config.NIFTY_TICKERS, years=config.SR_HISTORY_YEARS)
+            ohlc = strategy.fetch_ohlc(config.NIFTY_TICKERS, years=config.SR_HISTORY_YEARS,
+                                       provider=_PROVIDER["value"])
             if ohlc is not None and not ohlc["close"].empty:
                 _NIFTY_CACHE["ohlc"] = ohlc
                 _NIFTY_CACHE["ts"] = time.time()
@@ -1209,7 +1224,7 @@ def nifty_page():
     n = _nifty_snapshot(force=request.args.get("refresh") == "1")
     universe = sorted(((t, strategy.NAMES.get(t, t)) for t in config.NIFTY_TICKERS),
                       key=lambda x: x[1])
-    return render_template_string(NIFTY_PAGE, n=n,
+    return render_template_string(NIFTY_PAGE, n=n, provider=_PROVIDER["value"],
                                   edit=request.args.get("edit") == "1", universe=universe)
 
 
@@ -1299,6 +1314,20 @@ def nifty_correct_cash():
     except (KeyError, ValueError):
         pass
     return redirect("/nifty?edit=1")
+
+
+@app.route("/provider/<name>")
+def set_provider(name):
+    """Manually force the data source: 'stooq' skips Yahoo entirely (use when
+    Yahoo is known to be serving stale data during an outage), 'auto' goes
+    back to Yahoo-first with automatic Stooq fallback on hard failures."""
+    if name in ("auto", "stooq"):
+        _PROVIDER["value"] = name
+        _CACHE["ts"] = 0.0          # force both caches to re-fetch under the
+        _NIFTY_CACHE["ts"] = 0.0    # new provider on the next page load
+    ref = request.referrer or "/"
+    sep = "&" if "?" in ref else "?"
+    return redirect(f"{ref}{sep}refresh=1" if "refresh=1" not in ref else ref)
 
 
 @app.route("/api/data")

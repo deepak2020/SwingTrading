@@ -75,8 +75,12 @@ NAMES = {
 }
 
 
-def fetch_prices(tickers, years=2):
-    """Daily adjusted closes for the universe, as a DataFrame (columns=tickers)."""
+def fetch_prices(tickers, years=2, provider="auto"):
+    """Daily adjusted closes for the universe, as a DataFrame (columns=tickers).
+
+    provider: "auto" (Yahoo, falling back to Stooq per-ticker on failure) or
+    "stooq" (skip Yahoo entirely -- useful when Yahoo is known to be serving
+    stale data, since that doesn't look like a "failure" to the auto path)."""
     now = datetime.now(timezone.utc)
     p1 = int((now.timestamp())) - int(years * 365.25 * 86400)
     p2 = int(now.timestamp())
@@ -85,7 +89,7 @@ def fetch_prices(tickers, years=2):
     series = {}
     for tkr in tickers:
         got = False
-        for attempt in range(4):
+        for attempt in range(4 if provider != "stooq" else 0):
             host = _YAHOO_HOSTS[attempt % 2]
             try:
                 r = sess.get(f"https://{host}/v8/finance/chart/{tkr}",
@@ -112,8 +116,11 @@ def fetch_prices(tickers, years=2):
     return df.dropna(axis=1, thresh=int(len(df) * 0.8))
 
 
-def fetch_ohlc(tickers, years=3):
+def fetch_ohlc(tickers, years=3, provider="auto"):
     """Daily split/dividend-adjusted OHLC for the universe.
+
+    provider: "auto" (Yahoo, falling back to Stooq per-ticker) or "stooq"
+    (skip Yahoo entirely -- see fetch_prices() for why that matters).
 
     Returns {'close','high','low','open'} as DataFrames (columns=tickers),
     restricted to names with >=80% close coverage. The close frame is identical
@@ -128,7 +135,7 @@ def fetch_ohlc(tickers, years=3):
     frames = {"close": {}, "high": {}, "low": {}, "open": {}}
     for tkr in tickers:
         got = False
-        for attempt in range(4):
+        for attempt in range(4 if provider != "stooq" else 0):
             host = _YAHOO_HOSTS[attempt % 2]
             try:
                 r = sess.get(f"https://{host}/v8/finance/chart/{tkr}",
