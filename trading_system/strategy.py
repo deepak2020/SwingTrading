@@ -8,6 +8,7 @@ Pure, broker-agnostic. Two responsibilities:
     20% trailing stop.
 """
 
+import io
 import time
 from datetime import datetime, timezone
 
@@ -18,6 +19,29 @@ import pandas as pd
 import config
 
 _YAHOO_HOSTS = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
+
+
+def _stooq_ohlc(tkr, years):
+    """Fallback OHLC source for when Yahoo is down (e.g. a feed-wide outage):
+    Stooq's free daily CSV, no API key, no rate limit that matters at this
+    scale. Only used per-ticker, after Yahoo has already failed for that
+    ticker. Returns a DataFrame (Open/High/Low/Close, indexed by date) or
+    None if Stooq doesn't have the symbol either."""
+    try:
+        r = requests.get("https://stooq.com/q/d/l/",
+                          params={"s": tkr.lower(), "i": "d"}, timeout=20)
+        if r.status_code != 200 or not r.text.strip().startswith("Date"):
+            return None
+        df = pd.read_csv(io.StringIO(r.text))
+        if df.empty or "Close" not in df.columns:
+            return None
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.set_index("Date").sort_index()
+        cutoff = pd.Timestamp(datetime.now(timezone.utc).date()) - pd.Timedelta(days=int(years * 365.25))
+        df = df[df.index >= cutoff]
+        return df[["Open", "High", "Low", "Close"]] if not df.empty else None
+    except Exception:
+        return None
 
 # Friendly names for readable output
 NAMES = {
@@ -60,6 +84,7 @@ def fetch_prices(tickers, years=2):
     sess.headers.update({"User-Agent": "Mozilla/5.0"})
     series = {}
     for tkr in tickers:
+        got = False
         for attempt in range(4):
             host = _YAHOO_HOSTS[attempt % 2]
             try:
@@ -73,10 +98,15 @@ def fetch_prices(tickers, years=2):
                     adj = ind.get("adjclose", [{}])[0].get("adjclose") if "adjclose" in ind else None
                     close = adj if adj is not None else ind["quote"][0]["close"]
                     series[tkr] = pd.Series(close, index=idx, dtype=float)
+                    got = True
                     break
                 time.sleep(0.5 * (attempt + 1))
             except Exception:
                 time.sleep(0.5 * (attempt + 1))
+        if not got:
+            stq = _stooq_ohlc(tkr, years)
+            if stq is not None:
+                series[tkr] = stq["Close"]
         time.sleep(0.1)
     df = pd.DataFrame(series).sort_index()
     return df.dropna(axis=1, thresh=int(len(df) * 0.8))
@@ -97,6 +127,7 @@ def fetch_ohlc(tickers, years=3):
     sess.headers.update({"User-Agent": "Mozilla/5.0"})
     frames = {"close": {}, "high": {}, "low": {}, "open": {}}
     for tkr in tickers:
+        got = False
         for attempt in range(4):
             host = _YAHOO_HOSTS[attempt % 2]
             try:
@@ -117,10 +148,18 @@ def fetch_ohlc(tickers, years=3):
                     frames["high"][tkr] = pd.Series(q["high"], index=idx, dtype=float) * factor
                     frames["low"][tkr] = pd.Series(q["low"], index=idx, dtype=float) * factor
                     frames["open"][tkr] = pd.Series(q["open"], index=idx, dtype=float) * factor
+                    got = True
                     break
                 time.sleep(0.5 * (attempt + 1))
             except Exception:
                 time.sleep(0.5 * (attempt + 1))
+        if not got:
+            stq = _stooq_ohlc(tkr, years)
+            if stq is not None:
+                frames["close"][tkr] = stq["Close"]
+                frames["high"][tkr] = stq["High"]
+                frames["low"][tkr] = stq["Low"]
+                frames["open"][tkr] = stq["Open"]
         time.sleep(0.1)
     close = pd.DataFrame(frames["close"]).sort_index()
     keep = close.dropna(axis=1, thresh=int(len(close) * 0.8)).columns
