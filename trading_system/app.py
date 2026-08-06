@@ -1214,6 +1214,7 @@ def nifty_position_update():
     state = engine.load_state("nifty")
     pos = state["positions"].get(tkr)
     if pos and shares > 0 and price > 0:
+        state["cash"] = float(state.get("cash", 0)) + pos["shares"] * pos["entry"] - shares * price
         pos["shares"] = shares
         pos["entry"] = price
         pos["peak"] = max(float(pos.get("peak", price)), price)
@@ -1288,6 +1289,10 @@ def position_update():
     state = engine.load_state()
     pos = state["positions"].get(tkr)
     if pos and shares > 0 and price > 0:
+        # Correcting a fill changes the true cost basis -- true up cash by the
+        # difference so account value doesn't silently drift (the original
+        # add() already deducted the old cost basis from cash).
+        state["cash"] = float(state.get("cash", 0)) + pos["shares"] * pos["entry"] - shares * price
         pos["shares"] = shares
         pos["entry"] = price
         pos["peak"] = max(float(pos.get("peak", price)), price)  # never below entry
@@ -1356,6 +1361,7 @@ def sr_position_update():
     state = engine.load_state("sr")
     pos = state["positions"].get(tkr)
     if pos and shares > 0 and price > 0:
+        state["cash"] = float(state.get("cash", 0)) + pos["shares"] * pos["entry"] - shares * price
         pos["shares"] = shares
         pos["entry"] = price
         pos["peak"] = max(float(pos.get("peak", price)), price)
