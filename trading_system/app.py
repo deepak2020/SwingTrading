@@ -503,6 +503,17 @@ PAGE = r"""
       {{ "{:,.0f}".format(d.deposited) }} SEK put in.</p>
   </div>
 
+  <div class="editcard">
+    <div class="ename">Correct cash <span class="sub">bookkeeping fix · no P/L impact</span></div>
+    <form class="frow" method="post" action="/cash/correct">
+      <label>Adjust by (SEK)<input type="number" name="amount" value="0" step="0.01" inputmode="decimal"></label>
+      <button>Apply correction</button>
+    </form>
+    <p class="hint" style="margin:8px 0 0">Use only to fix a known bookkeeping error (e.g. a stale cash balance from
+      before a bug fix). Unlike "Set cash" above, this does <strong>not</strong> move the deposited baseline —
+      it changes account value and P/L directly. Positive = add cash, negative = remove.</p>
+  </div>
+
   {% elif d.positions %}
   <div class="tablescroll"><table>
     <thead><tr>
@@ -635,6 +646,16 @@ PAGE = r"""
     <p class="hint" style="margin:8px 0 0">Changing cash is treated as a deposit or withdrawal (e.g. your monthly SIP) —
       the P/L baseline moves with it, so contributions don't show up as profit. Currently measured against
       {{ "{:,.0f}".format(d.sr.deposited) }} SEK put in.</p>
+  </div>
+
+  <div class="editcard">
+    <div class="ename">Correct S/R cash <span class="sub">bookkeeping fix · no P/L impact</span></div>
+    <form class="frow" method="post" action="/sr/cash/correct">
+      <label>Adjust by (SEK)<input type="number" name="amount" value="0" step="0.01" inputmode="decimal"></label>
+      <button>Apply correction</button>
+    </form>
+    <p class="hint" style="margin:8px 0 0">Use only to fix a known bookkeeping error. Unlike "Set cash" above, this does
+      <strong>not</strong> move the deposited baseline. Positive = add cash, negative = remove.</p>
   </div>
   {% elif d.sr.positions %}
   <div class="tablescroll"><table>
@@ -1005,6 +1026,16 @@ NIFTY_PAGE = r"""
     <p class="hint" style="margin:8px 0 0">Cash changes are treated as deposits/withdrawals — the P/L baseline moves with
       them. Currently measured against ₹{{ "{:,.0f}".format(n.deposited) }} put in.</p>
   </div>
+
+  <div class="editcard">
+    <div class="ename">Correct cash <span class="sub">bookkeeping fix · no P/L impact</span></div>
+    <form class="frow" method="post" action="/nifty/cash/correct">
+      <label>Adjust by (₹)<input type="number" name="amount" value="0" step="0.01" inputmode="decimal"></label>
+      <button>Apply correction</button>
+    </form>
+    <p class="hint" style="margin:8px 0 0">Use only to fix a known bookkeeping error. Unlike "Set cash" above, this does
+      <strong>not</strong> move the deposited baseline. Positive = add cash, negative = remove.</p>
+  </div>
   {% elif n.positions %}
   <div class="tablescroll"><table>
     <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value ₹</th></tr></thead><tbody>
@@ -1256,6 +1287,20 @@ def nifty_set_cash():
     return redirect("/nifty?edit=1")
 
 
+@app.route("/nifty/cash/correct", methods=["POST"])
+def nifty_correct_cash():
+    """One-off bookkeeping fix: nudges cash WITHOUT moving the deposited
+    baseline. See /cash/correct."""
+    try:
+        state = engine.load_state("nifty")
+        amount = float(request.form["amount"])
+        state["cash"] = float(state.get("cash", 0)) + amount
+        engine.save_state(state, "nifty")
+    except (KeyError, ValueError):
+        pass
+    return redirect("/nifty?edit=1")
+
+
 @app.route("/api/data")
 def api_data():
     return jsonify(build_snapshot(force=request.args.get("refresh") == "1"))
@@ -1331,6 +1376,22 @@ def set_cash():
     return redirect("/?edit=1")
 
 
+@app.route("/cash/correct", methods=["POST"])
+def correct_cash():
+    """One-off bookkeeping fix: nudges cash WITHOUT moving the deposited
+    baseline (unlike /cash, which treats the change as a deposit/withdrawal).
+    For correcting historical drift, e.g. from a position Update made before
+    Update started truing up cash for the cost-basis change."""
+    try:
+        state = engine.load_state()
+        amount = float(request.form["amount"])
+        state["cash"] = float(state.get("cash", 0)) + amount
+        engine.save_state(state)
+    except (KeyError, ValueError):
+        pass
+    return redirect("/?edit=1")
+
+
 # ---- editing the trailing-S/R book (a separate portfolio, book="sr") ----
 
 @app.route("/sr/position/add", methods=["POST"])
@@ -1397,6 +1458,20 @@ def sr_set_cash():
         # move the P/L baseline by the same delta so contributions don't show as gains.
         state["deposited"] = float(state.get("deposited", config.CAPITAL)) + (new_cash - old_cash)
         state["cash"] = new_cash
+        engine.save_state(state, "sr")
+    except (KeyError, ValueError):
+        pass
+    return redirect("/?edit=1")
+
+
+@app.route("/sr/cash/correct", methods=["POST"])
+def sr_correct_cash():
+    """One-off bookkeeping fix: nudges cash WITHOUT moving the deposited
+    baseline. See /cash/correct."""
+    try:
+        state = engine.load_state("sr")
+        amount = float(request.form["amount"])
+        state["cash"] = float(state.get("cash", 0)) + amount
         engine.save_state(state, "sr")
     except (KeyError, ValueError):
         pass
