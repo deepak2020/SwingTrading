@@ -26,21 +26,33 @@ def _stooq_ohlc(tkr, years):
     Stooq's free daily CSV, no API key, no rate limit that matters at this
     scale. Only used per-ticker, after Yahoo has already failed for that
     ticker. Returns a DataFrame (Open/High/Low/Close, indexed by date) or
-    None if Stooq doesn't have the symbol either."""
+    None if Stooq doesn't have the symbol either. Logs the reason for a
+    miss (to stdout, visible in the host's logs) since this has no other
+    way to be debugged once deployed."""
     try:
         r = requests.get("https://stooq.com/q/d/l/",
-                          params={"s": tkr.lower(), "i": "d"}, timeout=20)
-        if r.status_code != 200 or not r.text.strip().startswith("Date"):
+                          params={"s": tkr.lower(), "i": "d"}, timeout=20,
+                          headers={"User-Agent": "Mozilla/5.0 (compatible; portfolio-dashboard/1.0)"})
+        if r.status_code != 200:
+            print(f"[stooq] {tkr}: HTTP {r.status_code}", flush=True)
+            return None
+        if not r.text.strip().startswith("Date"):
+            print(f"[stooq] {tkr}: unexpected body: {r.text[:120]!r}", flush=True)
             return None
         df = pd.read_csv(io.StringIO(r.text))
         if df.empty or "Close" not in df.columns:
+            print(f"[stooq] {tkr}: empty or malformed CSV ({len(df)} rows)", flush=True)
             return None
         df["Date"] = pd.to_datetime(df["Date"])
         df = df.set_index("Date").sort_index()
         cutoff = pd.Timestamp(datetime.now(timezone.utc).date()) - pd.Timedelta(days=int(years * 365.25))
         df = df[df.index >= cutoff]
-        return df[["Open", "High", "Low", "Close"]] if not df.empty else None
-    except Exception:
+        if df.empty:
+            print(f"[stooq] {tkr}: data exists but all older than {years}y cutoff", flush=True)
+            return None
+        return df[["Open", "High", "Low", "Close"]]
+    except Exception as e:
+        print(f"[stooq] {tkr}: {type(e).__name__}: {e}", flush=True)
         return None
 
 # Friendly names for readable output
