@@ -416,7 +416,7 @@ PAGE = r"""
 <body><div class="wrap">
   <header>
     <h1>Portfolio</h1>
-    <span class="sub">OMXS30 momentum · top-{{d.top_n}} · {{d.trail_pct}}% trailing stop · {{d.brokerage_min}} SEK brokerage · week ending {{d.as_of}}</span>
+    <span class="sub">Trailing S/R is the primary strategy · week ending {{d.as_of}}</span>
     <span class="refresh">
       <a class="btn ghost" href="/nifty">🇮🇳 Nifty</a>
       <a class="btn ghost" href="/backtest">📊 Backtest</a>
@@ -425,6 +425,15 @@ PAGE = r"""
       <a class="btn" href="?refresh=1">↻ Refresh</a>{% endif %}
     </span>
   </header>
+
+  {% if d.positions %}
+  <div class="warn" style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:12px;padding:12px 16px;margin:14px 0;font-size:13.5px">
+    ⚠ <strong>Momentum book is being retired — S/R is now the only strategy going forward.</strong>
+    You still have {{d.n_positions}} momentum position(s) below. Tap <strong>✎ Edit</strong> and use
+    <strong>→ Move to S/R</strong> on each one to transfer it into the S/R book as-is (same shares, same entry
+    price — not a sell/rebuy). Once all positions are moved, this momentum section can be removed entirely.
+  </div>
+  {% endif %}
 
   <div class="cards">
     <div class="card"><div class="label">Account value</div>
@@ -504,6 +513,10 @@ PAGE = r"""
         <input type="hidden" name="ticker" value="{{p.ticker}}">
         <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
         <button class="danger">Sell</button>
+      </form>
+      <form method="post" action="/position/move-to-sr" onsubmit="return confirm('Move {{p.shares}} {{p.ticker}} into the S/R book as-is (same shares, same entry {{p.entry}})? This does not sell it.');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <button class="ghost" style="background:transparent;color:var(--accent);border:1px solid var(--accent)">→ Move to S/R</button>
       </form>
     </div>
   </div>
@@ -1415,6 +1428,42 @@ def position_sell():
     if pos and price > 0:
         engine.apply_fill(state, engine.Order("SELL", tkr, pos["shares"], price, "MANUAL"))
         engine.save_state(state)
+    return redirect("/?edit=1")
+
+
+@app.route("/position/move-to-sr", methods=["POST"])
+def move_position_to_sr():
+    """Transfer a momentum-book holding into the S/R book AS-IS (same shares,
+    same entry price, same since-date if known) -- not a sell/rebuy. Moves
+    the position's cost basis from the momentum book's deposited baseline to
+    the S/R book's, so neither book's P/L looks artificially better or worse
+    because of the transfer (same principle as the /cash/correct tools)."""
+    tkr = request.form.get("ticker", "")
+    mom_state = engine.load_state()
+    pos = mom_state["positions"].get(tkr)
+    if not pos:
+        return redirect("/?edit=1")
+    sr_state = engine.load_state("sr")
+    since = pos.get("since") or date.today().isoformat()
+    sup_entry = None
+    ohlc = _CACHE.get("ohlc")
+    if ohlc is not None:
+        sup_entry = sr_book._support_at(ohlc, tkr, since, config.SR_LOOKBACK_W)
+    if sup_entry is None:
+        sup_entry = float(pos["entry"]) * 0.95   # fallback: assume entry was near support
+    sr_state["positions"][tkr] = {
+        "shares": pos["shares"],
+        "entry": pos["entry"],
+        "peak": max(float(pos.get("peak", pos["entry"])), float(pos["entry"])),
+        "sup_entry": sup_entry,
+        "since": since,
+    }
+    cost_basis = float(pos["shares"]) * float(pos["entry"])
+    mom_state["deposited"] = float(mom_state.get("deposited", config.CAPITAL)) - cost_basis
+    sr_state["deposited"] = float(sr_state.get("deposited", config.CAPITAL)) + cost_basis
+    del mom_state["positions"][tkr]
+    engine.save_state(mom_state)
+    engine.save_state(sr_state, "sr")
     return redirect("/?edit=1")
 
 
