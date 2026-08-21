@@ -341,7 +341,7 @@ PAGE = r"""
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portfolio — OMXS30 Momentum</title>
+<title>Portfolio — Trailing S/R</title>
 <style>
   :root {
     --bg:#0b0f17; --card:#141b2b; --card2:#1b2436; --line:#26324a;
@@ -416,7 +416,7 @@ PAGE = r"""
 <body><div class="wrap">
   <header>
     <h1>Portfolio</h1>
-    <span class="sub">Trailing S/R is the primary strategy · week ending {{d.as_of}}</span>
+    <span class="sub">Trailing S/R · buy the dip, {{d.sr.trail_pct if d.sr else 20}}% trailing stop · week ending {{d.as_of}}</span>
     <span class="refresh">
       <a class="btn ghost" href="/nifty">🇮🇳 Nifty</a>
       <a class="btn ghost" href="/backtest">📊 Backtest</a>
@@ -428,188 +428,14 @@ PAGE = r"""
 
   {% if d.positions %}
   <div class="warn" style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:12px;padding:12px 16px;margin:14px 0;font-size:13.5px">
-    ⚠ <strong>Momentum book is being retired — S/R is now the only strategy going forward.</strong>
-    You still have {{d.n_positions}} momentum position(s) below. Tap <strong>✎ Edit</strong> and use
-    <strong>→ Move to S/R</strong> on each one to transfer it into the S/R book as-is (same shares, same entry
-    price — not a sell/rebuy). Once all positions are moved, this momentum section can be removed entirely.
+    ⚠ <strong>{{d.n_positions}} old momentum position(s) still need moving.</strong>
+    Tap <strong>✎ Edit</strong>, scroll to <strong>Momentum cleanup</strong> below, and use
+    <strong>→ Move to S/R</strong> on each one to transfer it into this book as-is (same shares, same entry
+    price — not a sell/rebuy).
   </div>
   {% endif %}
-
-  <div class="cards">
-    <div class="card"><div class="label">Account value</div>
-      <div class="val">{{ "{:,.0f}".format(d.account_value) }} <span class="sub">SEK</span></div></div>
-    <div class="card"><div class="label">Total P/L <span class="sub">net</span></div>
-      <div class="val {{ 'pos' if d.total_pl>=0 else 'neg' }}">
-        {{ '+' if d.total_pl>=0 else '' }}{{ "{:,.0f}".format(d.total_pl) }}
-        <span class="sub">({{ '+' if d.total_pl_pct>=0 else '' }}{{d.total_pl_pct}}%)</span></div>
-      <div class="sub">on {{ "{:,.0f}".format(d.deposited) }} put in</div></div>
-    <div class="card"><div class="label">Cash</div>
-      <div class="val">{{ "{:,.0f}".format(d.cash) }}</div></div>
-    <div class="card"><div class="label">Exposure</div>
-      <div class="val">{{d.exposure_pct}}% <span class="sub">{{d.n_positions}}/{{d.top_n}}</span></div></div>
-    <div class="card"><div class="label">Brokerage paid</div>
-      <div class="val">{{ "{:,.0f}".format(d.fees_paid) }}
-        <span class="sub">SEK · {{d.brokerage_min}}/trade</span></div>
-      <div class="sub">{% if d.fee_drag_pct is not none %}{{d.fee_drag_pct}}% of gross P/L{% else %}— of gross P/L{% endif %}</div></div>
-    {% if d.index %}
-    <div class="card"><div class="label">OMXS30 index</div>
-      <div class="val">{{ "{:,.0f}".format(d.index.level) }}
-        <span class="sub {{ 'pos' if d.index.chg>=0 else 'neg' }}">{{ '+' if d.index.chg>=0 else '' }}{{d.index.chg}}%</span></div>
-      <div class="sub">{% if d.index.vs_sma is not none %}<span class="{{ 'pos' if d.index.regime=='uptrend' else 'neg' }}">{{d.index.regime}}</span> · {{ '+' if d.index.vs_sma>=0 else '' }}{{d.index.vs_sma}}% vs 20wk SMA{% else %}{{d.index.regime}}{% endif %}</div></div>
-    {% endif %}
-  </div>
-
-  <h2>Recommended actions <span class="sub">week ending {{d.as_of}}</span></h2>
-  {% if d.actions.sell or d.actions.buy or d.actions.hold %}
-  <div class="summary">
-    Sell {{d.actions.sell|length}} · Buy {{d.actions.buy|length}} · Hold {{d.actions.hold|length}}
-    {% if d.actions.sell or d.actions.buy %}· est. brokerage {{d.actions.fee_total}} SEK{% endif %}
-    {% if not d.actions.sell and not d.actions.buy %}— nothing to do, hold everything.{% endif %}
-  </div>
-  <div class="actions">
-    {% for a in d.actions.sell %}
-    <div class="act"><span class="pill sell">SELL</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}} · ~{{a.fee}} SEK fee</span></div>
-    {% endfor %}
-    {% for a in d.actions.buy %}
-    <div class="act"><span class="pill buy">BUY</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · +{{a.mom}}% 12w · ~{{a.fee}} SEK fee</span></div>
-    {% endfor %}
-    {% for a in d.actions.hold %}
-    <div class="act"><span class="pill hold">HOLD</span>
-      <strong>{{a.name}}</strong> <span class="sub">{{a.ticker}} · {{a.reason}}</span></div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty">All cash — buy the <strong>BUY now</strong> names in this week's signal below,
-    or tap <strong>✎ Edit</strong> to record holdings you already own.</div>
-  {% endif %}
-
-  {% if d.equity_history|length > 1 %}
-  <h2>Equity</h2>
-  <div class="card">{{ chart|safe }}</div>
-  {% endif %}
-
-  <h2>Positions</h2>
-  {% if edit %}
-  <p class="hint">Enter your actual fills. Adding a position spends cash (shares × price + fee);
-    “Save” corrects the recorded shares/price without moving cash; “Sell” books proceeds back to cash.
-    Use “Set cash” to reconcile to your broker’s real balance.</p>
-
-  {% for p in d.positions %}
-  <div class="editcard">
-    <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
-      {{p.name}} <span class="sub">{{p.ticker}}</span>
-      · now {{p.now}}{% if p.day_chg is not none %} · today <span class="{{ 'pos' if p.day_chg>=0 else 'neg' }}">{{ '+' if p.day_chg>=0 else '' }}{{p.day_chg}}%</span>{% endif %}
-      · P/L <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
-    <div class="frow">
-      <form method="post" action="/position/update">
-        <input type="hidden" name="ticker" value="{{p.ticker}}">
-        <label>Shares<input type="number" name="shares" value="{{p.shares}}" min="1" step="1" inputmode="numeric"></label>
-        <label>Entry price<input type="number" name="price" value="{{p.entry}}" min="0" step="0.01" inputmode="decimal"></label>
-        <button>Save</button>
-      </form>
-      <form method="post" action="/position/sell" onsubmit="return confirm('Sell all {{p.shares}} {{p.ticker}}?');">
-        <input type="hidden" name="ticker" value="{{p.ticker}}">
-        <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
-        <button class="danger">Sell</button>
-      </form>
-      <form method="post" action="/position/move-to-sr" onsubmit="return confirm('Move {{p.shares}} {{p.ticker}} into the S/R book as-is (same shares, same entry {{p.entry}})? This does not sell it.');">
-        <input type="hidden" name="ticker" value="{{p.ticker}}">
-        <button class="ghost" style="background:transparent;color:var(--accent);border:1px solid var(--accent)">→ Move to S/R</button>
-      </form>
-    </div>
-  </div>
-  {% endfor %}
-
-  <div class="editcard">
-    <div class="ename">＋ Add position</div>
-    <form class="frow" method="post" action="/position/add">
-      <label>Stock<select name="ticker">
-        {% for t, n in universe %}<option value="{{t}}">{{n}} ({{t}})</option>{% endfor %}
-      </select></label>
-      <label>Shares<input type="number" name="shares" min="1" step="1" inputmode="numeric" required></label>
-      <label>Price<input type="number" name="price" min="0" step="0.01" inputmode="decimal" required></label>
-      <button>Add</button>
-    </form>
-  </div>
-
-  <div class="editcard">
-    <div class="ename">Cash <span class="sub">deposit / withdraw</span></div>
-    <form class="frow" method="post" action="/cash">
-      <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.cash) }}" step="0.01" inputmode="decimal"></label>
-      <button>Set cash</button>
-    </form>
-    <p class="hint" style="margin:8px 0 0">Changing cash is treated as a deposit or withdrawal (e.g. your monthly SIP) —
-      the P/L baseline moves with it, so contributions don't show up as profit. Currently measured against
-      {{ "{:,.0f}".format(d.deposited) }} SEK put in.</p>
-  </div>
-
-  <div class="editcard">
-    <div class="ename">Correct cash <span class="sub">bookkeeping fix · no P/L impact</span></div>
-    <form class="frow" method="post" action="/cash/correct">
-      <label>Adjust by (SEK)<input type="number" name="amount" value="0" step="0.01" inputmode="decimal"></label>
-      <button>Apply correction</button>
-    </form>
-    <p class="hint" style="margin:8px 0 0">Use only to fix a known bookkeeping error (e.g. a stale cash balance from
-      before a bug fix). Unlike "Set cash" above, this does <strong>not</strong> move the deposited baseline —
-      it changes account value and P/L directly. Positive = add cash, negative = remove.</p>
-  </div>
-
-  {% elif d.positions %}
-  <div class="tablescroll"><table>
-    <thead><tr>
-      <th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Today</th><th>Peak</th>
-      <th>P/L</th><th>Value</th><th>Weight</th><th>Stop @</th><th>To stop</th>
-    </tr></thead><tbody>
-    {% for p in d.positions %}
-    <tr>
-      <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
-        <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
-      <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
-      <td class="{{ 'pos' if p.day_chg and p.day_chg>=0 else 'neg' }}">
-        {% if p.day_chg is not none %}{{ '+' if p.day_chg>=0 else '' }}{{p.day_chg}}%<br>
-        <span class="sub">{{ '+' if p.day_sek>=0 else '' }}{{ "{:,.0f}".format(p.day_sek) }}</span>{% else %}—{% endif %}</td>
-      <td>{{p.peak}}</td>
-      <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
-        <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
-      <td>{{ "{:,.0f}".format(p.value) }}</td>
-      <td><div class="bar"><span style="width:{{p.weight}}%"></span></div><span class="sub">{{p.weight}}%</span></td>
-      <td>{{p.stop_price}}</td>
-      <td class="{{ 'neg' if p.stop_dist_pct is not none and p.stop_dist_pct < 5 else '' }}">
-        {{p.stop_dist_pct}}%</td>
-    </tr>
-    {% endfor %}
-    </tbody></table></div>
-  {% else %}
-  <div class="empty">No open positions — the book is all cash.<br>
-    Tap <strong>✎ Edit</strong> to add your actual holdings, or run
-    <code>python run.py rebalance</code> to open the top-{{d.top_n}} from this week's signal.</div>
-  {% endif %}
-
-  <h2>This week's signal</h2>
-  <div class="tablescroll"><table>
-    <thead><tr><th>#</th><th>Stock</th><th>12w momentum</th><th>Action</th><th></th></tr></thead><tbody>
-    {% for s in d.signal %}
-    <tr>
-      <td>{{s.rank}}</td>
-      <td><strong>{{s.name}}</strong> <span class="sub">{{s.ticker}}</span></td>
-      <td class="{{ 'pos' if s.mom>=0 else 'neg' }}">{{ '+' if s.mom>=0 else '' }}{{s.mom}}%</td>
-      <td><span class="tag {{ 'buy' if s.rank<=d.top_n else '' }}">{{s.action}}</span></td>
-      <td>{% if s.held %}<span class="tag held">● held</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-    </tbody></table></div>
 
   {% if d.sr %}
-  <h2 style="margin-top:34px;border-top:1px solid var(--line);padding-top:22px">
-    Trailing S/R book <span class="sub">your S/R portfolio · buy the dip, 20% trailing stop</span></h2>
-  <p class="sub" style="margin:-4px 0 12px">
-    A separate book for the trailing support/resistance strategy
-    (<code>backtest_sr_trailing.py</code>). Record your actual S/R fills below (tap
-    <strong>✎ Edit</strong>); the dashboard flags <strong>SELL</strong> when a holding hits its
-    {{d.sr.trail_pct}}% trailing stop and <strong>BUY</strong> when a name is at support in an uptrend.</p>
-
   <div class="cards">
     <div class="card"><div class="label">S/R value</div>
       <div class="val">{{ "{:,.0f}".format(d.sr.account_value) }} <span class="sub">SEK</span></div></div>
@@ -770,9 +596,30 @@ PAGE = r"""
   {% endif %}
   {% endif %}
 
+  {% if edit and d.positions %}
+  <h2 style="margin-top:34px;border-top:1px solid var(--line);padding-top:22px">
+    Momentum cleanup <span class="sub">old book being retired — move these into S/R above</span></h2>
+  {% for p in d.positions %}
+  <div class="editcard">
+    <div class="ename">{{p.name}} <span class="sub">{{p.ticker}} · {{p.shares}} sh @ {{p.entry}} · now {{p.now}}</span></div>
+    <div class="frow">
+      <form method="post" action="/position/move-to-sr" onsubmit="return confirm('Move {{p.shares}} {{p.ticker}} into the S/R book as-is (same shares, same entry {{p.entry}})? This does not sell it.');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <button>→ Move to S/R</button>
+      </form>
+      <form method="post" action="/position/sell" onsubmit="return confirm('Sell all {{p.shares}} {{p.ticker}}?');">
+        <input type="hidden" name="ticker" value="{{p.ticker}}">
+        <label>Sell @<input type="number" name="price" value="{{p.now}}" min="0" step="0.01" inputmode="decimal"></label>
+        <button class="danger">Sell</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <p class="hint">Once this list is empty, this section disappears on its own.</p>
+  {% endif %}
+
   <div class="foot">Prices updated {{d.updated}} · auto-refreshes every 5 min during
-    market hours (Mon–Fri 09:00–17:30 CET) · read-only dashboard, places no orders ·
-    start capital {{ "{:,.0f}".format(d.start_capital) }} SEK
+    market hours (Mon–Fri 09:00–17:30 CET) · read-only dashboard, places no orders
     <br>Data source: <strong>{{ 'Stooq (forced)' if provider=='stooq' else 'Yahoo (auto → Stooq on failure)' }}</strong>
     {% if provider=='stooq' %}· <a href="/provider/auto">switch back to auto</a>
     {% else %}· <a href="/provider/stooq">force Stooq</a> if prices look stuck{% endif %}</div>
