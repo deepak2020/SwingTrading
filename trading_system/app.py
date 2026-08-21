@@ -448,6 +448,12 @@ PAGE = r"""
       <div class="val">{{ "{:,.0f}".format(d.sr.cash) }}</div></div>
     <div class="card"><div class="label">S/R exposure</div>
       <div class="val">{{d.sr.exposure_pct}}% <span class="sub">{{d.sr.n_positions}}/{{d.sr.max_pos}}</span></div></div>
+    <div class="card"><div class="label">Today's P/L</div>
+      <div class="val {{ 'pos' if d.sr.today_pl>=0 else 'neg' }}">
+        {{ '+' if d.sr.today_pl>=0 else '' }}{{ "{:,.0f}".format(d.sr.today_pl) }} <span class="sub">SEK</span></div></div>
+    <div class="card"><div class="label">Brokerage paid</div>
+      <div class="val">{{ "{:,.0f}".format(d.sr.fees_paid) }}
+        <span class="sub">SEK · {{d.sr.brokerage_min}}/trade</span></div></div>
   </div>
 
   <div class="summary">Sell {{d.sr.sell_signals|length}} · Buy {{d.sr.buy_signals|length}}
@@ -475,7 +481,7 @@ PAGE = r"""
   {% for p in d.sr.positions %}
   <div class="editcard">
     <div class="ename"><span class="pill {{p.action|lower}}">{{p.action}}</span>
-      {{p.name}} <span class="sub">{{p.ticker}} · now {{p.now}} · stop {{p.stop_price}}
+      {{p.name}} <span class="sub">{{p.ticker}} · now {{p.now}}{% if p.day_chg_pct is not none %} · today <span class="{{ 'pos' if p.day_chg_pct>=0 else 'neg' }}">{{ '+' if p.day_chg_pct>=0 else '' }}{{p.day_chg_pct}}%</span>{% endif %} · stop {{p.stop_price}}
       · P/L</span> <span class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%</span></div>
     <div class="frow">
       <form method="post" action="/sr/position/update">
@@ -527,12 +533,15 @@ PAGE = r"""
   </div>
   {% elif d.sr.positions %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value</th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Today</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value</th></tr></thead><tbody>
     {% for p in d.sr.positions %}
     <tr>
       <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
         <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
       <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.day_chg_pct and p.day_chg_pct>=0 else 'neg' }}">
+        {% if p.day_chg_pct is not none %}{{ '+' if p.day_chg_pct>=0 else '' }}{{p.day_chg_pct}}%<br>
+        <span class="sub">{{ '+' if p.day_sek>=0 else '' }}{{ "{:,.0f}".format(p.day_sek) }}</span>{% else %}—{% endif %}</td>
       <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
         <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
       <td>{{p.peak}}</td>
@@ -853,6 +862,12 @@ NIFTY_PAGE = r"""
       <div class="val">₹{{ "{:,.0f}".format(n.cash) }}</div></div>
     <div class="card"><div class="label">Exposure</div>
       <div class="val">{{n.exposure_pct}}% <span class="sub">{{n.n_positions}}/{{n.max_pos}}</span></div></div>
+    <div class="card"><div class="label">Today's P/L</div>
+      <div class="val {{ 'pos' if n.today_pl>=0 else 'neg' }}">
+        {{ '+' if n.today_pl>=0 else '' }}₹{{ "{:,.0f}".format(n.today_pl) }}</div></div>
+    <div class="card"><div class="label">Brokerage paid</div>
+      <div class="val">₹{{ "{:,.0f}".format(n.fees_paid) }}
+        <span class="sub">{{n.brokerage_pct}}%/side</span></div></div>
   </div>
 
   <div class="summary">Sell {{n.sell_signals|length}} · Buy {{n.buy_signals|length}}
@@ -930,12 +945,15 @@ NIFTY_PAGE = r"""
   </div>
   {% elif n.positions %}
   <div class="tablescroll"><table>
-    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value ₹</th></tr></thead><tbody>
+    <thead><tr><th>Stock</th><th>Shares</th><th>Entry</th><th>Now</th><th>Today</th><th>P/L</th><th>Peak</th><th>Stop @</th><th>To stop</th><th>Value ₹</th></tr></thead><tbody>
     {% for p in n.positions %}
     <tr>
       <td><strong>{{p.name}}</strong> <span class="sub">{{p.ticker}}</span><br>
         <span class="pill {{p.action|lower}}">{{p.action}}</span></td>
       <td>{{p.shares}}</td><td>{{p.entry}}</td><td>{{p.now}}</td>
+      <td class="{{ 'pos' if p.day_chg_pct and p.day_chg_pct>=0 else 'neg' }}">
+        {% if p.day_chg_pct is not none %}{{ '+' if p.day_chg_pct>=0 else '' }}{{p.day_chg_pct}}%<br>
+        <span class="sub">{{ '+' if p.day_sek>=0 else '' }}{{ "{:,.0f}".format(p.day_sek) }}</span>{% else %}—{% endif %}</td>
       <td class="{{ 'pos' if p.pl_pct>=0 else 'neg' }}">{{ '+' if p.pl_pct>=0 else '' }}{{p.pl_pct}}%<br>
         <span class="sub">{{ '+' if p.pl_sek>=0 else '' }}{{ "{:,.0f}".format(p.pl_sek) }}</span></td>
       <td>{{p.peak}}</td>
@@ -1060,7 +1078,9 @@ def _nifty_snapshot(force=False):
         return None
     try:
         return sr_book.live_book(_NIFTY_CACHE["ohlc"], engine.load_state("nifty"),
-                                 capital=config.NIFTY_CAPITAL)
+                                 capital=config.NIFTY_CAPITAL,
+                                 commission_pct=config.NIFTY_COMMISSION_PCT,
+                                 commission_min=config.NIFTY_COMMISSION_MIN)
     except Exception:
         return None
 

@@ -138,10 +138,12 @@ def _support_at(ohlc, ticker, since, lookback_w):
 
 def live_book(ohlc, state,
               lookback_w=None, support_touch=None, trend_sma_w=None,
-              stop_below=None, trail=None, max_pos=None, capital=None):
+              stop_below=None, trail=None, max_pos=None, capital=None,
+              commission_pct=None, commission_min=None):
     """Evaluate the user's recorded S/R positions against the live signal.
     `capital` sets the default cash/P-L baseline (SEK book: config.CAPITAL;
-    Nifty book: config.NIFTY_CAPITAL)."""
+    Nifty book: config.NIFTY_CAPITAL). `commission_pct`/`commission_min`
+    default to the Nordnet model (SEK book); the Nifty book passes its own."""
     capital = config.CAPITAL if capital is None else capital
     lookback_w = config.SR_LOOKBACK_W if lookback_w is None else lookback_w
     support_touch = config.SR_SUPPORT_TOUCH if support_touch is None else support_touch
@@ -149,11 +151,15 @@ def live_book(ohlc, state,
     stop_below = config.SR_STOP_BELOW if stop_below is None else stop_below
     trail = config.SR_TRAIL if trail is None else trail
     max_pos = config.SR_MAX_POS if max_pos is None else max_pos
+    commission_pct = config.COMMISSION_PCT if commission_pct is None else commission_pct
+    commission_min = config.COMMISSION_MIN if commission_min is None else commission_min
 
     close = ohlc["close"] if ohlc else None
     if close is None or close.empty:
         return None
-    last = close.ffill().iloc[-1]
+    filled = close.ffill()
+    last = filled.iloc[-1]
+    prev = filled.iloc[-2] if len(filled) > 1 else last
     as_of = close.index[-1].date().isoformat()
 
     positions = state.get("positions", {})
@@ -190,12 +196,17 @@ def live_book(ohlc, state,
 
         value = shares * now
         invested += value
+        prev_px = float(prev.get(tkr)) if pd.notna(prev.get(tkr)) else now
+        day_chg_pct = (now / prev_px - 1) * 100 if prev_px else None
+        day_sek = shares * (now - prev_px)
         row = {
             "ticker": tkr, "name": NAMES.get(tkr, tkr), "shares": shares,
             "entry": round(entry, 2), "since": since or "",
             "now": round(now, 2), "peak": round(peak, 2), "value": round(value, 0),
             "pl_pct": round((now / entry - 1) * 100, 1) if entry else 0.0,
             "pl_sek": round(shares * (now - entry), 0),
+            "day_chg_pct": round(day_chg_pct, 1) if day_chg_pct is not None else None,
+            "day_sek": round(day_sek, 0),
             "stop_price": round(stop_price, 2),
             "stop_dist_pct": round((now / stop_price - 1) * 100, 1) if stop_price else None,
             "action": "SELL" if breaching else "HOLD",
@@ -236,6 +247,16 @@ def live_book(ohlc, state,
     # fixed 100k — so SIP top-ups (recorded via "Set cash") don't count as profit.
     deposited = float(state.get("deposited", capital))
     total_pl = account_value - deposited
+    today_pl = sum(r["day_sek"] for r in rows)
+
+    # Brokerage paid = the larger of what's been tracked on real trades (apply_fill
+    # accumulates this) and the brokerage implied by currently-held positions' entry
+    # cost -- covers positions added via "Save"/migration that bypassed apply_fill,
+    # same fallback the momentum book uses so this never shows 0 while you hold.
+    implied_entry_fees = sum(
+        max(r["shares"] * r["entry"] * commission_pct, commission_min) for r in rows)
+    fees_paid = max(state.get("fees_paid", 0.0), implied_entry_fees)
+
     return {
         "as_of": as_of,
         "signal_week": signal_week,
@@ -246,6 +267,10 @@ def live_book(ohlc, state,
         "exposure_pct": round(invested / account_value * 100, 1) if account_value else 0.0,
         "total_pl": round(total_pl),
         "total_pl_pct": round(total_pl / deposited * 100, 1) if deposited else 0.0,
+        "today_pl": round(today_pl),
+        "fees_paid": round(fees_paid),
+        "brokerage_pct": commission_pct * 100,
+        "brokerage_min": commission_min,
         "n_positions": len(rows), "max_pos": max_pos, "free_slots": free_slots,
         "trail_pct": int(trail * 100),
         "positions": rows,
