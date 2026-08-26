@@ -159,7 +159,17 @@ def live_book(ohlc, state,
         return None
     filled = close.ffill()
     last = filled.iloc[-1]
-    prev = filled.iloc[-2] if len(filled) > 1 else last
+    # "Today's P/L" is only meaningful once today's own bar actually exists in the
+    # feed. Before that (pre-market, or the feed hasn't posted today's row yet),
+    # close.index[-1] is still YESTERDAY's close -- using iloc[-2] then would silently
+    # compare it against the day before, mislabeling a stale prior-day change as
+    # "today's" and causing it to jump discontinuously once today's real bar lands.
+    try:
+        today_sthlm = pd.Timestamp.now(tz="Europe/Stockholm").tz_localize(None).normalize()
+    except Exception:
+        today_sthlm = pd.Timestamp.now().normalize()
+    has_today_bar = close.index[-1].normalize() == today_sthlm
+    prev = filled.iloc[-2] if (has_today_bar and len(filled) > 1) else None
     as_of = close.index[-1].date().isoformat()
 
     positions = state.get("positions", {})
@@ -196,9 +206,13 @@ def live_book(ohlc, state,
 
         value = shares * now
         invested += value
-        prev_px = float(prev.get(tkr)) if pd.notna(prev.get(tkr)) else now
-        day_chg_pct = (now / prev_px - 1) * 100 if prev_px else None
-        day_sek = shares * (now - prev_px)
+        if prev is not None and pd.notna(prev.get(tkr)):
+            prev_px = float(prev.get(tkr))
+            day_chg_pct = (now / prev_px - 1) * 100 if prev_px else None
+            day_sek = shares * (now - prev_px)
+        else:
+            day_chg_pct = None   # today's bar hasn't posted yet -- no "today" to report
+            day_sek = 0.0
         row = {
             "ticker": tkr, "name": NAMES.get(tkr, tkr), "shares": shares,
             "entry": round(entry, 2), "since": since or "",
