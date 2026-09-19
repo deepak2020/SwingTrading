@@ -330,7 +330,13 @@ def _sr_snapshot():
     if not ohlc:
         return None
     try:
-        return sr_book.live_book(ohlc, engine.load_state("sr"))
+        state = engine.load_state("sr")
+        if sr_book.sync_monthly_sip(state, config.SR_SIP_MONTHLY):
+            engine.save_state(state, "sr")
+        data = sr_book.live_book(ohlc, state)
+        if data is not None:
+            data["sip_monthly"] = config.SR_SIP_MONTHLY
+        return data
     except Exception:
         return None
 
@@ -517,9 +523,10 @@ PAGE = r"""
       <label>Balance (SEK)<input type="number" name="cash" value="{{ "%.2f"|format(d.sr.cash) }}" step="0.01" inputmode="decimal"></label>
       <button>Set cash</button>
     </form>
-    <p class="hint" style="margin:8px 0 0">Changing cash is treated as a deposit or withdrawal (e.g. your monthly SIP) —
-      the P/L baseline moves with it, so contributions don't show up as profit. Currently measured against
-      {{ "{:,.0f}".format(d.sr.deposited) }} SEK put in.</p>
+    <p class="hint" style="margin:8px 0 0">Your {{ "{:,.0f}".format(d.sr.sip_monthly) }} SEK monthly SIP is now credited
+      automatically on the 1st of each month — use this form only for extra deposits/withdrawals beyond that (e.g. a bonus
+      top-up, or a partial withdrawal). Any change here is treated as a deposit/withdrawal, not profit — the P/L baseline
+      moves with it. Currently measured against {{ "{:,.0f}".format(d.sr.deposited) }} SEK put in.</p>
   </div>
 
   <div class="editcard">

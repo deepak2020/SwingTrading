@@ -27,6 +27,39 @@ import config
 from strategy import NAMES
 
 
+def sync_monthly_sip(state, monthly_amount):
+    """Auto-credit a fixed monthly SIP contribution to cash and the deposited
+    baseline, matching the backtest's SIP schedule, so sizing (account_value /
+    max_pos) doesn't silently understate the account between manual "Set cash"
+    updates. Idempotent per calendar month via `last_sip_month`; the first time
+    it runs it only records the current month as the baseline (no retroactive
+    back-crediting of past months). Mutates `state` in place; returns True if
+    it changed (caller should persist the state)."""
+    if not monthly_amount:
+        return False
+    try:
+        now = pd.Timestamp.now(tz="Europe/Stockholm").tz_localize(None)
+    except Exception:
+        now = pd.Timestamp.now()
+    cur_key = now.year * 12 + (now.month - 1)
+    last = state.get("last_sip_month")
+    if last is None:
+        state["last_sip_month"] = f"{now.year:04d}-{now.month:02d}"
+        return True
+    ly, lm = (int(x) for x in last.split("-"))
+    last_key = ly * 12 + (lm - 1)
+    changed = False
+    while last_key < cur_key:
+        last_key += 1
+        y, m0 = divmod(last_key, 12)
+        m = m0 + 1
+        state["cash"] = float(state.get("cash", 0.0)) + monthly_amount
+        state["deposited"] = float(state.get("deposited", 0.0)) + monthly_amount
+        state["last_sip_month"] = f"{y:04d}-{m:02d}"
+        changed = True
+    return changed
+
+
 def _weeklies(ohlc):
     return (
         ohlc["close"].resample("W-FRI").last(),
