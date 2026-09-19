@@ -28,6 +28,7 @@ SR_TRAIL = 0.20           # trailing stop from the position's peak
 SR_MAX_POS = 6            # concurrent positions, equal-weight
 SR_HISTORY_YEARS = 3      # how much daily OHLC to pull for the live sim
 SR_SIP_MONTHLY = float(os.environ.get("SR_SIP_MONTHLY", 25_000))  # SEK, auto-credited each month
+SR_SIP_START_MONTH = os.environ.get("SR_SIP_START_MONTH", "2026-07")  # "YYYY-MM" trading began; no SIP that month, one credited each month after
 
 # ---- Account ----
 CAPITAL = float(os.environ.get("CAPITAL", 100_000))   # SEK, initial (paper mode)
