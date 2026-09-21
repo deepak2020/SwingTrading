@@ -241,6 +241,8 @@ def live_book(ohlc, state,
 
         value = shares * now
         invested += value
+        pl_pct = round((now / entry - 1) * 100, 1) if entry else 0.0
+        pl_sek = round(shares * (now - entry), 0)
         if prev is not None and pd.notna(prev.get(tkr)):
             prev_px = float(prev.get(tkr))
             day_chg_pct = (now / prev_px - 1) * 100 if prev_px else None
@@ -248,12 +250,17 @@ def live_book(ohlc, state,
         else:
             day_chg_pct = None   # today's bar hasn't posted yet -- no "today" to report
             day_sek = 0.0
+        # a position opened on the same trading day as the latest bar wasn't held
+        # through yesterday's close -> prev predates ownership, so "today" would
+        # wrongly include the pre-entry gap. Cap it to the move since entry.
+        if since and since == as_of:
+            day_chg_pct, day_sek = pl_pct, pl_sek
         row = {
             "ticker": tkr, "name": NAMES.get(tkr, tkr), "shares": shares,
             "entry": round(entry, 2), "since": since or "",
             "now": round(now, 2), "peak": round(peak, 2), "value": round(value, 0),
-            "pl_pct": round((now / entry - 1) * 100, 1) if entry else 0.0,
-            "pl_sek": round(shares * (now - entry), 0),
+            "pl_pct": pl_pct,
+            "pl_sek": pl_sek,
             "day_chg_pct": round(day_chg_pct, 1) if day_chg_pct is not None else None,
             "day_sek": round(day_sek, 0),
             "stop_price": round(stop_price, 2),
